@@ -1,0 +1,9 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "default",
+  "rsc": true,
+  "tsx": true,
+  "aliasPrefix": "@",
+  "baseColor": "zinc",
+  "css": "app/globals.css"
+}

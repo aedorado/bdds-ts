@@ -1,0 +1,395 @@
+'use client'
+
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
+import { useTranscriptEditor } from '@/lib/transcript/context'
+import { TranscriptSegment } from '@/lib/transcript/parser'
+import { Button } from '@/components/ui/button'
+import { Search, X, ChevronUp, ChevronDown, ZoomOut, Pencil } from 'lucide-react'
+import { debounce } from '@/lib/utils'
+
+interface TranscriptEditorProps {
+  lectureId: number
+  initialSegments: TranscriptSegment[]
+  onSave?: (segments: TranscriptSegment[]) => Promise<void>
+}
+
+export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorProps) {
+  const {
+    segments,
+    setSegments,
+    activeSegmentIndex,
+    isSearchOpen,
+    toggleSearch,
+    setSearchQuery,
+    searchQuery,
+    searchMatches,
+    currentSearchIndex,
+    nextSearchMatch,
+    previousSearchMatch,
+    toggleDistractionFree,
+    distractionFreeMode,
+  } = useTranscriptEditor()
+
+  const [isSaving, setIsSaving] = useState(false)
+  const [lastSaved, setLastSaved] = useState<string>('Saved')
+  const [isReplaceOpen, setIsReplaceOpen] = useState(false)
+  const [replaceText, setReplaceText] = useState('')
+  const editorRef = useRef<HTMLDivElement>(null)
+  const debouncedSaveRef = useRef<((segs: TranscriptSegment[]) => void) | undefined>(undefined)
+
+  useEffect(() => {
+    setSegments(initialSegments)
+  }, [initialSegments, setSegments])
+
+  useEffect(() => {
+    debouncedSaveRef.current = debounce(async (segs: TranscriptSegment[]) => {
+      if (!onSave) return
+      try {
+        setIsSaving(true)
+        await onSave(segs)
+        setLastSaved(new Date().toLocaleTimeString())
+      } catch (error) {
+        console.error('Failed to save transcript:', error)
+      } finally {
+        setIsSaving(false)
+      }
+    }, 2000)
+  }, [onSave])
+
+  const triggerSave = useCallback((segs: TranscriptSegment[]) => {
+    debouncedSaveRef.current?.(segs)
+  }, [])
+
+  const handleSegmentTextChange = useCallback(
+    (index: number, newText: string) => {
+      const updated = segments.map((s, i) => i === index ? { ...s, text: newText } : s)
+      setSegments(updated)
+      triggerSave(updated)
+    },
+    [segments, setSegments, triggerSave]
+  )
+
+  const handleSpeakerChange = useCallback(
+    (index: number, newSpeaker: string, applyToAll: boolean) => {
+      const oldSpeaker = segments[index].speaker
+      const updated = segments.map((s, i) => {
+        if (applyToAll && s.speaker === oldSpeaker) return { ...s, speaker: newSpeaker || null }
+        if (!applyToAll && i === index) return { ...s, speaker: newSpeaker || null }
+        return s
+      })
+      setSegments(updated)
+      triggerSave(updated)
+    },
+    [segments, setSegments, triggerSave]
+  )
+
+  // Replace all occurrences of searchQuery with replaceText across all segments
+  const handleReplaceAll = useCallback(() => {
+    if (!searchQuery.trim()) return
+    const updated = segments.map(s => ({
+      ...s,
+      text: s.text.split(searchQuery).join(replaceText),
+      speaker: s.speaker ? s.speaker.split(searchQuery).join(replaceText) : s.speaker,
+    }))
+    setSegments(updated)
+    triggerSave(updated)
+    setSearchQuery(replaceText)
+  }, [segments, searchQuery, replaceText, setSegments, triggerSave, setSearchQuery])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey
+      if (mod && e.key === 's') {
+        e.preventDefault()
+        if (onSave && segments.length) debouncedSaveRef.current?.(segments)
+      }
+      if (mod && !e.shiftKey && e.key === 'f') {
+        e.preventDefault()
+        setIsReplaceOpen(false)
+        toggleSearch()
+      }
+      if (mod && e.key === 'h') {
+        e.preventDefault()
+        setIsReplaceOpen(true)
+        if (!isSearchOpen) toggleSearch()
+      }
+      if (mod && e.shiftKey && e.key === 'F') {
+        e.preventDefault()
+        toggleDistractionFree()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [segments, onSave, isSearchOpen, toggleSearch, toggleDistractionFree])
+
+  useEffect(() => {
+    if (activeSegmentIndex !== null) {
+      const el = document.getElementById(`segment-${activeSegmentIndex}`)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [activeSegmentIndex])
+
+  return (
+    <div className={distractionFreeMode ? 'distraction-free-active' : ''}>
+      {/* Toolbar */}
+      {!distractionFreeMode && (
+        <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-border px-4 py-2.5 flex justify-between items-center gap-2">
+          <span className="text-xs text-muted-foreground shrink-0">
+            {isSaving ? 'Saving…' : `Last saved: ${lastSaved}`}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline" size="sm"
+              onClick={() => { setIsReplaceOpen(false); toggleSearch() }}
+              className={isSearchOpen && !isReplaceOpen ? 'bg-muted' : ''}
+            >
+              <Search className="w-3.5 h-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline text-xs">Find</span>
+            </Button>
+            <Button
+              variant="outline" size="sm"
+              onClick={() => { setIsReplaceOpen(true); if (!isSearchOpen) toggleSearch() }}
+              className={isReplaceOpen ? 'bg-muted' : ''}
+            >
+              <span className="text-xs">Replace</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={toggleDistractionFree}>
+              <ZoomOut className="w-3.5 h-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline text-xs">Focus</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Search / Replace bar */}
+      {isSearchOpen && !distractionFreeMode && (
+        <div className="sticky top-12 z-10 bg-muted border-b border-border px-4 py-2.5 flex flex-col gap-2">
+          {/* Find row */}
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              placeholder="Find…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 min-w-0 px-3 py-1.5 text-sm rounded border border-border bg-background"
+              autoFocus
+            />
+            <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+              {searchMatches.length > 0 ? `${currentSearchIndex + 1}/${searchMatches.length}` : '0'}
+            </span>
+            <Button variant="outline" size="sm" onClick={previousSearchMatch} disabled={searchMatches.length === 0} className="h-7 w-7 p-0">
+              <ChevronUp className="w-3.5 h-3.5" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={nextSearchMatch} disabled={searchMatches.length === 0} className="h-7 w-7 p-0">
+              <ChevronDown className="w-3.5 h-3.5" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => { toggleSearch(); setIsReplaceOpen(false) }} className="h-7 w-7 p-0">
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+
+          {/* Replace row */}
+          {isReplaceOpen && (
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                placeholder="Replace with…"
+                value={replaceText}
+                onChange={(e) => setReplaceText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleReplaceAll()}
+                className="flex-1 min-w-0 px-3 py-1.5 text-sm rounded border border-border bg-background"
+              />
+              <Button
+                size="sm"
+                onClick={handleReplaceAll}
+                disabled={!searchQuery.trim()}
+                className="shrink-0 h-7 text-xs whitespace-nowrap"
+              >
+                Replace all {searchMatches.length > 0 ? `(${searchMatches.length})` : ''}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Segments */}
+      <div ref={editorRef} className="max-w-3xl mx-auto px-4 sm:px-8 py-6 space-y-0">
+        {segments.map((segment, index) => (
+          <SegmentEditor
+            key={segment.id}
+            segment={segment}
+            index={index}
+            isActive={activeSegmentIndex === index}
+            isSearchMatch={searchMatches.some(m => m.segmentIndex === index)}
+            isCurrentMatch={searchMatches[currentSearchIndex]?.segmentIndex === index}
+            siblingCount={segments.filter(s => s.speaker === segment.speaker).length}
+            onChange={(text) => handleSegmentTextChange(index, text)}
+            onSpeakerChange={(newSpeaker, all) => handleSpeakerChange(index, newSpeaker, all)}
+          />
+        ))}
+
+        {segments.length === 0 && (
+          <div className="text-center py-16 text-muted-foreground text-sm">
+            No transcript segments found.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Individual segment editor ───────────────────────────────────────────────
+
+interface SegmentEditorProps {
+  segment: TranscriptSegment
+  index: number
+  isActive: boolean
+  isSearchMatch: boolean
+  isCurrentMatch: boolean
+  siblingCount: number
+  onChange: (text: string) => void
+  onSpeakerChange: (newSpeaker: string, applyToAll: boolean) => void
+}
+
+function SegmentEditor({
+  segment,
+  index,
+  isActive,
+  isSearchMatch,
+  isCurrentMatch,
+  siblingCount,
+  onChange,
+  onSpeakerChange,
+}: SegmentEditorProps) {
+  const contentRef = useRef<HTMLDivElement>(null)
+  // Tracks the last text we wrote into the DOM to detect external vs internal changes
+  const lastDomTextRef = useRef<string>(segment.text)
+
+  const [editingSpeaker, setEditingSpeaker] = useState(false)
+  const [speakerDraft, setSpeakerDraft] = useState(segment.speaker ?? '')
+  const speakerInputRef = useRef<HTMLInputElement>(null)
+
+  // Set initial DOM content only on mount — never let React reconcile this div again
+  useLayoutEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.textContent = segment.text
+      lastDomTextRef.current = segment.text
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // intentionally empty — mount only
+
+  // Sync external changes (find-replace, etc.) without disturbing user's cursor
+  useEffect(() => {
+    if (contentRef.current && segment.text !== lastDomTextRef.current) {
+      contentRef.current.textContent = segment.text
+      lastDomTextRef.current = segment.text
+    }
+  }, [segment.text])
+
+  useEffect(() => {
+    if (editingSpeaker) speakerInputRef.current?.focus()
+  }, [editingSpeaker])
+
+  const handleInput = useCallback(() => {
+    const text = contentRef.current?.textContent ?? ''
+    lastDomTextRef.current = text // mark as internal so the effect above skips it
+    onChange(text)
+  }, [onChange])
+
+  const commitSpeaker = useCallback((draft: string) => {
+    setEditingSpeaker(false)
+    const trimmed = draft.trim()
+    if (trimmed === (segment.speaker ?? '')) return
+    const applyAll =
+      siblingCount > 1
+        ? window.confirm(
+            `Rename "${segment.speaker || 'unknown'}" → "${trimmed}" in all ${siblingCount} segments with this speaker?`
+          )
+        : false
+    onSpeakerChange(trimmed, applyAll)
+  }, [segment.speaker, siblingCount, onSpeakerChange])
+
+  return (
+    <div
+      id={`segment-${index}`}
+      className={[
+        'group relative py-3 border-b border-border/40 last:border-0 transition-colors',
+        isActive ? 'bg-amber-50/60 dark:bg-amber-900/10' : '',
+        isCurrentMatch ? 'ring-2 ring-blue-400 ring-inset rounded' : '',
+        isSearchMatch && !isCurrentMatch ? 'bg-yellow-50/40 dark:bg-yellow-900/10' : '',
+      ].join(' ')}
+    >
+      <div className="flex gap-3 sm:gap-5">
+        {/* Timestamp gutter */}
+        <div className="w-12 sm:w-16 shrink-0 pt-1 text-right">
+          {segment.timestampLabel && (
+            <span className="text-[10px] sm:text-[11px] text-muted-foreground/50 font-mono tabular-nums leading-tight select-none">
+              {segment.timestampLabel}
+            </span>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {/* Speaker pill — only on non-headings */}
+          {!segment.isHeading && (
+            <div className="mb-1">
+              {editingSpeaker ? (
+                <input
+                  ref={speakerInputRef}
+                  value={speakerDraft}
+                  onChange={e => setSpeakerDraft(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') commitSpeaker(speakerDraft)
+                    if (e.key === 'Escape') {
+                      setEditingSpeaker(false)
+                      setSpeakerDraft(segment.speaker ?? '')
+                    }
+                  }}
+                  onBlur={() => commitSpeaker(speakerDraft)}
+                  className="text-xs px-2 py-0.5 rounded border border-blue-400 bg-background outline-none w-44"
+                  placeholder="Speaker name…"
+                />
+              ) : (
+                <button
+                  onClick={() => {
+                    setSpeakerDraft(segment.speaker ?? '')
+                    setEditingSpeaker(true)
+                  }}
+                  title="Click to edit speaker name"
+                  className={[
+                    'inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full transition-colors',
+                    segment.speaker
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50'
+                      : 'bg-slate-100 text-slate-400 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700',
+                  ].join(' ')}
+                >
+                  <Pencil className="w-2.5 h-2.5 opacity-40" />
+                  {segment.speaker ?? 'unknown'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Editable text — React never sets children on this div */}
+          <div
+            ref={contentRef}
+            contentEditable
+            suppressContentEditableWarning
+            onInput={handleInput}
+            className={[
+              'outline-none leading-relaxed',
+              segment.isHeading
+                ? segment.headingLevel === 1 ? 'text-xl font-bold'
+                  : segment.headingLevel === 2 ? 'text-lg font-semibold'
+                  : 'text-base font-medium'
+                : 'text-sm sm:text-base text-foreground',
+              'rounded px-1 -mx-1 focus:bg-blue-50/30 dark:focus:bg-blue-900/10',
+            ].join(' ')}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}

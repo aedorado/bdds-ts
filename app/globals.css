@@ -1,0 +1,194 @@
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.6%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.6%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.6%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 9.02%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --primary: 0 0% 9.02%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9.02%;
+    --ring: 0 0% 3.6%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 3.6%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.6%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.6%;
+    --popover-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 98%;
+    --accent-foreground: 0 0% 9.02%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9.02%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --ring: 0 0% 83.3%;
+  }
+}
+
+@layer base {
+  html {
+    font-size: 106.25%; /* 17px base */
+  }
+  html.font-large {
+    font-size: 120%; /* 19.2px — accessible large mode */
+  }
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+}
+
+/* Transcript Editor Styles */
+.transcript-segment {
+  padding: 1rem;
+  border-left: 4px solid transparent;
+  transition-property: border-color, background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  cursor: text;
+}
+
+.transcript-segment:hover {
+  border-left-color: #f59e0b;
+  background-color: #fffbeb;
+}
+
+.dark .transcript-segment:hover {
+  background-color: #1e293b;
+}
+
+.transcript-segment.active {
+  border-left-color: #b45309;
+  background-color: #fef3c7;
+}
+
+.dark .transcript-segment.active {
+  background-color: #334155;
+}
+
+.transcript-segment-timestamp {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: hsl(var(--muted-foreground));
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Courier, monospace;
+  margin-right: 0.5rem;
+}
+
+.transcript-speaker-pill {
+  display: inline-block;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  background-color: #e879f9;
+  color: white;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  border-radius: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.transcript-heading-h1 {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: bold;
+  font-family: Lora, serif;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.transcript-heading-h2 {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: bold;
+  font-family: Lora, serif;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.transcript-heading-h3 {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  font-weight: bold;
+  font-family: Lora, serif;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Search Highlight */
+.search-highlight {
+  background-color: #fef08a;
+  font-weight: 600;
+}
+
+.dark .search-highlight {
+  background-color: #713f12;
+}
+
+/* Dev Auth Badge */
+.dev-auth-badge {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  background-color: #ef4444;
+  color: white;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  border-radius: 9999px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Courier, monospace;
+  z-index: 50;
+}
+
+/* Skeleton Loader */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.skeleton {
+  background-color: hsl(var(--muted));
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Distraction-Free Mode */
+.distraction-free {
+  display: none;
+}
+
+.distraction-free-active .distraction-free {
+  display: block;
+}
