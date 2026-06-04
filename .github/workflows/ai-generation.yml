@@ -29,6 +29,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test Database Connection
+        run: node -e "console.log('DATABASE_URL length:', (process.env.DATABASE_URL || '').length)"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Run AI generation for next lecture
         run: npx tsx scripts/ai/process-next-lecture.ts
         continue-on-error: true
