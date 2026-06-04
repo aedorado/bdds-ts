@@ -29,17 +29,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Debug DATABASE_URL
-        run: |
-          if [ -z "$DATABASE_URL" ]; then
-            echo "ERROR: DATABASE_URL is empty!"
-          else
-            echo "DATABASE_URL is set (length: ${#DATABASE_URL})"
-            echo "Starts with: ${DATABASE_URL:0:30}"
-          fi
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
       - name: Run AI generation for next lecture
         run: npx tsx scripts/ai/process-next-lecture.ts
         continue-on-error: true
