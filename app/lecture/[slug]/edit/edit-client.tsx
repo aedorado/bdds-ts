@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
-import { ArrowLeft, MessageSquare, X, CheckCircle2, Clock, Info, Video, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, MessageSquare, X, CheckCircle2, Clock, Info, Video, ChevronDown, ChevronUp, Zap } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { TranscriptSegment } from '@/lib/transcript/parser'
@@ -13,6 +13,10 @@ import {
 import { TranscriptEditor } from '@/components/editor/transcript-editor'
 import { CommentsPanel } from '@/components/editor/comments-panel'
 import { MediaPlayer } from '@/components/media/player'
+import { useEditorActivity } from '@/lib/hooks/useEditorActivity'
+import { useActivityTracker } from '@/hooks/useActivityTracker'
+import { usePointsAward } from '@/hooks/usePointsAward'
+import posthog from 'posthog-js'
 
 interface LectureData {
   id: number
@@ -32,6 +36,7 @@ interface TranscriptEditClientProps {
   segments: TranscriptSegment[]
   userRole: string
   userName: string
+  userEmail?: string
 }
 
 // Sends a heartbeat every 60s while the tab is visible, awarding editing points.
@@ -79,8 +84,26 @@ export function TranscriptEditClient({
   segments,
   userRole,
   userName,
+  userEmail,
 }: TranscriptEditClientProps) {
   useEditingHeartbeat(lecture.id)
+
+  // Track activity (mouse, keyboard, tab visibility, idle time)
+  // Disabled: useEditorActivity causes lag with mousemove/touchmove listeners on document
+  // const activityTracker = useEditorActivity({
+  //   lectureId: lecture.id,
+  //   lectureSlug: lecture.slug,
+  // })
+
+  const editorRef = useRef<HTMLDivElement>(null)
+  useActivityTracker(editorRef)
+
+  // Points award every 5 minutes (only on edit screen)
+  const { pointsAwarded } = usePointsAward()
+
+  const sessionStartTimeRef = useRef<number>(Date.now())
+  const lastPostHogEventRef = useRef<number>(0)
+  const POSTHOG_THROTTLE_MS = 2 * 60 * 1000 // 2 minutes
 
   const [showSidebar, setShowSidebar] = useState<'info' | 'comments' | null>(null)
   const hasMedia = !!(lecture.youtubeUrl || lecture.audioUrl)
@@ -89,8 +112,65 @@ export function TranscriptEditClient({
 
   const status = STATUS_LABELS[lecture.status] ?? { label: lecture.status, color: 'bg-muted text-muted-foreground' }
 
+  useEffect(() => {
+    posthog.capture('transcript_editing_started', {
+      lecture_id: lecture.id,
+      slug: lecture.slug,
+      title: lecture.title,
+      speaker: lecture.speaker,
+      status: lecture.status,
+      user_role: userRole,
+      user_name: userName,
+      user_email: userEmail,
+      has_media: hasMedia,
+    })
+
+    // Track session duration when leaving edit page
+    return () => {
+      const sessionDurationMs = Date.now() - sessionStartTimeRef.current
+      const sessionDurationMinutes = Math.floor(sessionDurationMs / 60000)
+
+      posthog.capture('transcript_editing_ended', {
+        lecture_id: lecture.id,
+        slug: lecture.slug,
+        title: lecture.title,
+        speaker: lecture.speaker,
+        user_role: userRole,
+        user_name: userName,
+        user_email: userEmail,
+        session_duration_ms: sessionDurationMs,
+        session_duration_minutes: sessionDurationMinutes,
+      })
+
+      console.log(
+        `📊 [${new Date().toLocaleTimeString()}] Editing session ended - User: ${userEmail}, Duration: ${sessionDurationMinutes}m`
+      )
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const handleSave = async (updatedSegments: TranscriptSegment[]) => {
-    await saveTranscriptAction(lecture.id, updatedSegments)
+    try {
+      await saveTranscriptAction(lecture.id, updatedSegments)
+      // activityTracker.recordSave(false) // Disabled: useEditorActivity hook is disabled
+
+      // Throttle PostHog events to max once every 2 minutes
+      const now = Date.now();
+      if (now - lastPostHogEventRef.current > POSTHOG_THROTTLE_MS) {
+        posthog.capture('transcript_saved', {
+          lecture_id: lecture.id,
+          slug: lecture.slug,
+          title: lecture.title,
+          speaker: lecture.speaker,
+          segment_count: updatedSegments.length,
+          user_role: userRole,
+        });
+        lastPostHogEventRef.current = now;
+      }
+    } catch (error) {
+      posthog.captureException(error)
+      throw error
+    }
   }
 
   return (
@@ -159,12 +239,20 @@ export function TranscriptEditClient({
         {/* Body */}
         <div className="flex flex-1 overflow-hidden">
           {/* Editor */}
-          <div className="flex-1 overflow-y-auto">
+          <div ref={editorRef} className="flex-1 overflow-y-auto relative">
             <TranscriptEditor
               lectureId={lecture.id}
               initialSegments={segments}
               onSave={handleSave}
             />
+
+            {/* Points earned notification */}
+            {pointsAwarded && (
+              <div className="fixed bottom-6 right-6 animate-bounce bg-gradient-to-r from-amber-400 to-yellow-500 text-gray-900 px-4 py-2 rounded-lg font-semibold text-sm flex items-center gap-2 shadow-lg">
+                <Zap className="w-4 h-4" />
+                +{pointsAwarded.pointsAwarded} pts earned!
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}

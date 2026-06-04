@@ -2,16 +2,21 @@ import { db } from '@/lib/db'
 import { users, activityLogs, contributionStats } from '@/lib/db/schema'
 import { sql, desc, eq } from 'drizzle-orm'
 
-export type BadgeTier = 'Beginner' | 'Contributor' | 'Sevak' | 'Mahabhagavat'
+export type BadgeTier = 'Shraddha' | 'Sadhu-sanga' | 'Bhajana-kriya' | 'Anartha-nivritti' | 'Nishtha' | 'Ruchi' | 'Asakti' | 'Rati' | 'Prema'
 
 /**
  * Get badge tier based on seva points
  */
 export function getBadgeTier(sevaPoints: number): BadgeTier {
-  if (sevaPoints >= 10000) return 'Mahabhagavat'
-  if (sevaPoints >= 5000) return 'Sevak'
-  if (sevaPoints >= 1000) return 'Contributor'
-  return 'Beginner'
+  if (sevaPoints >= 50000) return 'Prema'
+  if (sevaPoints >= 40000) return 'Rati'
+  if (sevaPoints >= 30000) return 'Asakti'
+  if (sevaPoints >= 20000) return 'Ruchi'
+  if (sevaPoints >= 10000) return 'Nishtha'
+  if (sevaPoints >= 5000) return 'Anartha-nivritti'
+  if (sevaPoints >= 2000) return 'Bhajana-kriya'
+  if (sevaPoints >= 500) return 'Sadhu-sanga'
+  return 'Shraddha'
 }
 
 /**
@@ -19,13 +24,23 @@ export function getBadgeTier(sevaPoints: number): BadgeTier {
  */
 export function getBadgeColor(tier: BadgeTier): string {
   switch (tier) {
-    case 'Mahabhagavat':
+    case 'Prema':
+      return 'bg-gradient-to-r from-rose-400 to-red-700'
+    case 'Rati':
+      return 'bg-gradient-to-r from-red-400 to-red-600'
+    case 'Asakti':
+      return 'bg-gradient-to-r from-orange-400 to-orange-600'
+    case 'Ruchi':
       return 'bg-gradient-to-r from-yellow-400 to-amber-600'
-    case 'Sevak':
+    case 'Nishtha':
       return 'bg-gradient-to-r from-saffron-400 to-saffron-600'
-    case 'Contributor':
+    case 'Anartha-nivritti':
       return 'bg-gradient-to-r from-tulasi-400 to-tulasi-600'
-    case 'Beginner':
+    case 'Bhajana-kriya':
+      return 'bg-gradient-to-r from-cyan-400 to-cyan-600'
+    case 'Sadhu-sanga':
+      return 'bg-gradient-to-r from-sky-400 to-sky-600'
+    case 'Shraddha':
       return 'bg-gradient-to-r from-slate-400 to-slate-600'
   }
 }

@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1780501596291,
+      "tag": "0000_thankful_triathlon",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780587657677,
+      "tag": "0001_complex_frog_thor",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780609630973,
+      "tag": "0002_add_last_points_awarded_at",
+      "breakpoints": true
+    }
+  ]
+}

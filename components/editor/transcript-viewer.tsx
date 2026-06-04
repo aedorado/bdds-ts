@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { TranscriptSegment } from '@/lib/transcript/parser'
+import { normalizeAudioUrl } from '@/lib/utils/audio-utils'
 import { Search, X, ChevronUp, ChevronDown, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -115,7 +116,8 @@ export function TranscriptViewer({ segments, youtubeUrl, audioUrl }: TranscriptV
       {!youtubeUrl && audioUrl && (
         <div className="p-4 border-b border-border">
           <audio controls className="w-full">
-            <source src={audioUrl} />
+            <source src={normalizeAudioUrl(audioUrl)} />
+            Your browser does not support the audio element.
           </audio>
         </div>
       )}
@@ -148,7 +150,7 @@ export function TranscriptViewer({ segments, youtubeUrl, audioUrl }: TranscriptV
                 <span className="transcript-speaker-pill">{segment.speaker}</span>
               )}
 
-              <div className={`p-2 ${segment.isHeading ? `transcript-heading-h${segment.headingLevel}` : ''}`}>
+              <div className={`p-2 whitespace-pre-wrap break-words ${segment.isHeading ? `transcript-heading-h${segment.headingLevel}` : ''}`}>
                 {highlightText(segment.text, searchQuery)}
               </div>
             </div>

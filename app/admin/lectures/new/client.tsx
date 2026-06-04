@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { Combobox } from '@/components/ui/combobox'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { createLectureAction } from '@/lib/db/actions'
 
@@ -26,12 +27,49 @@ function slugify(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-').slice(0, 60)
 }
 
+interface Filters {
+  speakers: string[]
+  categories: string[]
+  places: string[]
+}
+
 export function NewLectureClient() {
   const router = useRouter()
   const [form, setForm] = useState<FormState>(EMPTY)
   const [loading, setLoading] = useState(false)
   const [metaLoading, setMetaLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [filters, setFilters] = useState<Filters>({
+    speakers: [],
+    categories: [],
+    places: [],
+  })
+  const [filtersLoading, setFiltersLoading] = useState(true)
+
+  // Fetch filters on mount with timeout
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
+
+        const res = await fetch('/api/lectures/filters', { signal: controller.signal })
+        clearTimeout(timeoutId)
+
+        if (!res.ok) throw new Error('Failed to fetch filters')
+        const data = await res.json()
+        setFilters(data)
+      } catch (err) {
+        console.error('Error fetching filters:', err)
+        // Silently fail - form still works without suggestions
+      } finally {
+        setFiltersLoading(false)
+      }
+    }
+
+    fetchFilters()
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -107,17 +145,83 @@ export function NewLectureClient() {
 
         <div>
           <label className={LABEL}>Speaker *</label>
-          <input type="text" name="speaker" value={form.speaker} onChange={handleChange} required placeholder="Speaker name" className={INPUT} />
+          {!filtersLoading ? (
+            <Combobox
+              options={filters.speakers}
+              value={form.speaker}
+              onValueChange={(value) =>
+                setForm(prev => ({ ...prev, speaker: value }))
+              }
+              placeholder="Select or type speaker name..."
+              searchPlaceholder="Search speakers..."
+            />
+          ) : (
+            <input
+              type="text"
+              name="speaker"
+              value={form.speaker}
+              onChange={handleChange}
+              required
+              placeholder="Speaker name"
+              className={INPUT}
+            />
+          )}
         </div>
 
         <div>
           <label className={LABEL}>Category</label>
-          <input type="text" name="category" value={form.category} onChange={handleChange} placeholder="e.g. Bhagavad Gita" className={INPUT} />
+          {!filtersLoading ? (
+            <Combobox
+              options={filters.categories}
+              value={form.category}
+              onValueChange={(value) =>
+                setForm(prev => ({ ...prev, category: value }))
+              }
+              placeholder="Select or type category..."
+              searchPlaceholder="Search categories..."
+            />
+          ) : (
+            <input
+              type="text"
+              name="category"
+              value={form.category}
+              onChange={handleChange}
+              placeholder="e.g. Bhagavad Gita"
+              className={INPUT}
+            />
+          )}
         </div>
 
         <div>
           <label className={LABEL}>Slug *</label>
-          <input type="text" name="slug" value={form.slug} onChange={handleChange} required placeholder="url-friendly-slug" className={INPUT} />
+          <div className="flex gap-2">
+            <input type="text" name="slug" value={form.slug} onChange={handleChange} required placeholder="url-friendly-slug" className={INPUT} />
+            {!form.youtubeUrl.trim() && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onMouseEnter={() => setShowTooltip(true)}
+                  onMouseLeave={() => setShowTooltip(false)}
+                  onClick={() => {
+                    const parts = [form.title, form.speaker].filter(Boolean)
+                    const baseSlug = slugify(parts.join(' ') || 'lecture')
+                    const randomSuffix = Math.floor(1000 + Math.random() * 9000)
+                    const slug = `${baseSlug}-${randomSuffix}`
+                    setForm(prev => ({ ...prev, slug }))
+                  }}
+                  className="px-3 py-2 text-xs font-medium bg-muted hover:bg-muted/80 border border-border rounded transition-colors whitespace-nowrap"
+                >
+                  Generate
+                </button>
+                {showTooltip && (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-slate-950 text-slate-100 text-xs px-2.5 py-1.5 rounded shadow-lg pointer-events-none">
+                    title + speaker + 4 random digits
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-3 border-transparent border-t-slate-950"></div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div>
@@ -127,12 +231,32 @@ export function NewLectureClient() {
 
         <div>
           <label className={LABEL}>Place</label>
-          <input type="text" name="place" value={form.place} onChange={handleChange} placeholder="City, Country" className={INPUT} />
+          {!filtersLoading ? (
+            <Combobox
+              options={filters.places}
+              value={form.place}
+              onValueChange={(value) =>
+                setForm(prev => ({ ...prev, place: value }))
+              }
+              placeholder="Select or type place..."
+              searchPlaceholder="Search places..."
+            />
+          ) : (
+            <input
+              type="text"
+              name="place"
+              value={form.place}
+              onChange={handleChange}
+              placeholder="City, Country"
+              className={INPUT}
+            />
+          )}
         </div>
 
         <div>
           <label className={LABEL}>Audio URL</label>
-          <input type="url" name="audioUrl" value={form.audioUrl} onChange={handleChange} placeholder="https://…/audio.mp3" className={INPUT} />
+          <input type="url" name="audioUrl" value={form.audioUrl} onChange={handleChange} placeholder="https://…/audio.mp3 or https://drive.google.com/file/d/…" className={INPUT} />
+          <p className="text-[11px] text-muted-foreground mt-1">Supports: Direct MP3/WAV, Google Drive, Dropbox, YouTube, or other audio hosts</p>
         </div>
 
         <div>

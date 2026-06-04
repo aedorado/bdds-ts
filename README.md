@@ -156,18 +156,23 @@ bdds-ts/
 ### Seva Points System
 
 Earn points for contributions:
-- Submit transcript: **+50 points**
-- Correct lecture: **+30 points**
-- Proofread lecture: **+20 points**
-- Add comment: **+5 points**
-- Daily streak: **+10 points/day**
+- Daily login: **+5 points** (once per day per device)
+- Active editing: **+5 points every 5 minutes** (detected via keyboard, mouse, or touch activity)
+- Real-time feedback: See points earned notifications while editing
+- Auto-save: Built-in 2-second debounce saves changes as you edit
+- Efficient tracking: Activity tracked in browser storage to minimize server load
 
-### Badge Tiers
+### Badge Tiers (9 Stages of Bhakti)
 
-- 🌱 **Beginner**: 0-999 points
-- 🌾 **Contributor**: 1,000-4,999 points
-- ✨ **Sevak**: 5,000-9,999 points
-- 👑 **Mahabhagavat**: 10,000+ points
+- **Shraddha** (Faith): 0-499 points
+- **Sadhu-sanga** (Association with devotees): 500-1,999 points
+- **Bhajana-kriya** (Devotional practice): 2,000-4,999 points
+- **Anartha-nivritti** (Removal of obstacles): 5,000-9,999 points
+- **Nishtha** (Steadiness): 10,000-19,999 points
+- **Ruchi** (Taste): 20,000-29,999 points
+- **Asakti** (Attachment): 30,000-39,999 points
+- **Rati** (Emotion/Affection): 40,000-49,999 points
+- **Prema** (Divine love): 50,000+ points
 
 Track your rank at `/community` leaderboard.
 

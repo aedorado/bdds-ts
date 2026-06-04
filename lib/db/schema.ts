@@ -24,6 +24,8 @@ export const users = pgTable(
     sevaPoints: integer('seva_points').notNull().default(0),
     streakDays: integer('streak_days').notNull().default(0),
     isActive: boolean('is_active').notNull().default(true),
+    sessionVersion: integer('session_version').notNull().default(0), // Increment to invalidate sessions
+    lastPointsAwardedAt: timestamp('last_points_awarded_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
@@ -58,11 +60,16 @@ export const lectures = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
     aiProcessedAt: timestamp('ai_processed_at'),
+    aiGenerationStatus: varchar('ai_generation_status', { length: 50 }), // pending | completed | failed
+    aiGenerationStartedAt: timestamp('ai_generation_started_at'),
+    aiGenerationCompletedAt: timestamp('ai_generation_completed_at'),
+    aiGenerationError: text('ai_generation_error'),
   },
   (table) => [
     index('status_idx').on(table.status),
     index('assigned_corrector_idx').on(table.assignedCorrectorId),
     index('assigned_proofreader_idx').on(table.assignedProofreaderId),
+    index('ai_generation_status_idx').on(table.aiGenerationStatus),
     uniqueIndex('slug_idx').on(table.slug),
   ]
 )

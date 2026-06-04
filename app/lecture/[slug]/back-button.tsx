@@ -9,7 +9,7 @@ export function BackButton() {
   const router = useRouter()
   return (
     <button
-      onClick={() => router.back()}
+      onClick={() => router.push('/workspace/my-lectures')}
       className={cn(buttonVariants({ variant: 'ghost' }), 'mb-6 -ml-2')}
     >
       <ArrowLeft className="w-4 h-4 mr-2" />

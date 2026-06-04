@@ -2,10 +2,11 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { useTranscriptEditor } from '@/lib/transcript/context'
-import { TranscriptSegment } from '@/lib/transcript/parser'
+import { useSegmentMarker } from '@/lib/hooks/useSegmentMarker'
+import { TranscriptSegment, extractTimestamp } from '@/lib/transcript/parser'
 import { getSpeakerColor } from '@/lib/transcript/speaker-colors'
 import { Button } from '@/components/ui/button'
-import { Search, X, ChevronUp, ChevronDown, ZoomOut, ZoomIn, Pencil, Undo2, Redo2, Check } from 'lucide-react'
+import { Search, X, ChevronUp, ChevronDown, ZoomOut, ZoomIn, Pencil, Undo2, Redo2, Check, Plus, Bookmark } from 'lucide-react'
 import { debounce } from '@/lib/utils'
 
 interface TranscriptEditorProps {
@@ -14,7 +15,7 @@ interface TranscriptEditorProps {
   onSave?: (segments: TranscriptSegment[]) => Promise<void>
 }
 
-export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorProps) {
+export function TranscriptEditor({ lectureId, initialSegments, onSave }: TranscriptEditorProps) {
   const {
     segments, setSegments,
     activeSegmentIndex,
@@ -24,15 +25,17 @@ export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorPr
     seekPlayer,
     pendingFocus, clearPendingFocus, setPendingFocus,
   } = useTranscriptEditor()
+  const { markedIndex, setMarker } = useSegmentMarker(lectureId)
 
   const [saveStatus, setSaveStatus] = useState<'saved' | 'dirty' | 'saving'>('saved')
   const isDirtyRef = useRef(false)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
   const [isReplaceOpen, setIsReplaceOpen] = useState(false)
   const [replaceText, setReplaceText] = useState('')
+  const [autoScroll, setAutoScroll] = useState(true)
   const editorRef = useRef<HTMLDivElement>(null)
   const debouncedSaveRef = useRef<((s: TranscriptSegment[]) => void) | undefined>(undefined)
-  const historyRef = useRef<TranscriptSegment[][]>([])
+  const historyRef = useRef<{ segments: TranscriptSegment[]; activeIndex: number }[]>([])
   const historyIndexRef = useRef(-1)
   const isUndoRedoRef = useRef(false)
   const [canUndo, setCanUndo] = useState(false)
@@ -46,15 +49,15 @@ export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorPr
   const pushHistory = useCallback((segs: TranscriptSegment[]) => {
     if (isUndoRedoRef.current) return
     historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1)
-    historyRef.current.push(segs.map(s => ({ ...s })))
+    historyRef.current.push({ segments: segs.map(s => ({ ...s })), activeIndex: activeSegmentIndex ?? 0 })
     if (historyRef.current.length > 50) historyRef.current.shift()
     historyIndexRef.current = historyRef.current.length - 1
     updateHistoryState()
-  }, [updateHistoryState])
+  }, [updateHistoryState, activeSegmentIndex])
 
   useEffect(() => {
     setSegments(initialSegments)
-    historyRef.current = [initialSegments.map(s => ({ ...s }))]
+    historyRef.current = [{ segments: initialSegments.map(s => ({ ...s })), activeIndex: 0 }]
     historyIndexRef.current = 0
     isDirtyRef.current = false
     setSaveStatus('saved')
@@ -74,7 +77,7 @@ export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorPr
         console.error('Save failed', e)
         setSaveStatus('dirty')
       }
-    }, 2000)
+    }, 15000)
   }, [onSave])
 
   const triggerSave = useCallback((segs: TranscriptSegment[]) => {
@@ -161,7 +164,9 @@ export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorPr
   const handleSplit = useCallback((index: number, before: string, after: string) => {
     const seg = segments[index]
     const first: TranscriptSegment = { ...seg, text: before.trimEnd() }
-    const second: TranscriptSegment = { ...seg, id: `${seg.id}-s${Date.now()}`, text: after.trimStart(), timestampSeconds: null, timestampLabel: null }
+    const afterTrimmed = after.trimStart()
+    const { timestampSeconds, timestampLabel, cleanText } = extractTimestamp(afterTrimmed)
+    const second: TranscriptSegment = { ...seg, id: `${seg.id}-s${Date.now()}`, text: cleanText, timestampSeconds: timestampSeconds ?? null, timestampLabel: timestampLabel ?? null }
     const updated = [...segments]; updated.splice(index, 1, first, second)
     applySegments(updated)
     // Focus start of the new second segment
@@ -171,29 +176,36 @@ export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorPr
   const handleMerge = useCallback((index: number, currentText: string) => {
     if (index === 0) return
     const prev = segments[index - 1]
-    const cursorPos = prev.text.trimEnd().length + 1 // junction point: end of prev + space
-    const merged: TranscriptSegment = { ...prev, text: prev.text.trimEnd() + ' ' + currentText.trimStart() }
+    const next = segments[index]
+    const timeMarker = next?.timestampLabel ? ` (${next.timestampLabel})` : ''
+    const cursorPos = prev.text.trimEnd().length + timeMarker.length + 1
+    const merged: TranscriptSegment = { ...prev, text: prev.text.trimEnd() + timeMarker + ' ' + currentText.trimStart() }
     const updated = [...segments]; updated.splice(index - 1, 2, merged)
     applySegments(updated)
-    // Place cursor exactly at the merge junction
     setPendingFocus({ index: index - 1, cursorPos })
   }, [segments, applySegments, setPendingFocus])
 
   const undo = useCallback(() => {
     if (historyIndexRef.current > 0) {
       historyIndexRef.current--; isUndoRedoRef.current = true
-      setSegments([...historyRef.current[historyIndexRef.current]]); isUndoRedoRef.current = false
+      const state = historyRef.current[historyIndexRef.current]
+      setSegments([...state.segments]); isUndoRedoRef.current = false
+      // Keep cursor at current segment, don't jump to saved activeIndex
+      setPendingFocus({ index: activeSegmentIndex ?? 0, cursorPos: 0 })
       updateHistoryState()
     }
-  }, [setSegments, updateHistoryState])
+  }, [setSegments, setPendingFocus, updateHistoryState, activeSegmentIndex])
 
   const redo = useCallback(() => {
     if (historyIndexRef.current < historyRef.current.length - 1) {
       historyIndexRef.current++; isUndoRedoRef.current = true
-      setSegments([...historyRef.current[historyIndexRef.current]]); isUndoRedoRef.current = false
+      const state = historyRef.current[historyIndexRef.current]
+      setSegments([...state.segments]); isUndoRedoRef.current = false
+      // Keep cursor at current segment, don't jump to saved activeIndex
+      setPendingFocus({ index: activeSegmentIndex ?? 0, cursorPos: 0 })
       updateHistoryState()
     }
-  }, [setSegments, updateHistoryState])
+  }, [setSegments, setPendingFocus, updateHistoryState, activeSegmentIndex])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -239,9 +251,9 @@ export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorPr
   }, [pendingFocus, clearPendingFocus])
 
   useEffect(() => {
-    if (activeSegmentIndex != null)
+    if (autoScroll && activeSegmentIndex != null)
       document.getElementById(`segment-${activeSegmentIndex}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [activeSegmentIndex])
+  }, [activeSegmentIndex, autoScroll])
 
   useEffect(() => {
     const match = searchMatches[currentSearchIndex]
@@ -273,7 +285,18 @@ export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorPr
 
       {!distractionFreeMode && (
         <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-border px-4 py-2.5 flex justify-between items-center gap-2">
-          {saveIndicator}
+          <div className="flex items-center gap-2">
+            {saveIndicator}
+            {markedIndex !== null && (
+              <button
+                onClick={() => document.getElementById(`segment-${markedIndex}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                className="text-xs px-2 py-1 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors font-medium"
+                title="Jump to left off position"
+              >
+                📍 Left off at segment {markedIndex + 1}
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-1.5">
             <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} title="Undo (⌘Z)" className="h-7 w-7 p-0">
               <Undo2 className="w-3.5 h-3.5" />
@@ -287,6 +310,15 @@ export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorPr
             </Button>
             <Button variant="outline" size="sm" onClick={() => { setIsReplaceOpen(true); if (!isSearchOpen) toggleSearch() }} className={isReplaceOpen ? 'bg-muted' : ''}>
               <span className="text-xs">Replace</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAutoScroll(!autoScroll)}
+              className={autoScroll ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-950/70' : ''}
+              title={autoScroll ? 'Auto-scroll enabled' : 'Auto-scroll disabled'}
+            >
+              <ChevronDown className="w-3.5 h-3.5 sm:mr-1.5" /><span className="hidden sm:inline text-xs">{autoScroll ? 'Scroll' : 'No scroll'}</span>
             </Button>
             <Button variant="outline" size="sm" onClick={toggleDistractionFree} title="Focus mode (⌘⇧F)">
               <ZoomOut className="w-3.5 h-3.5 sm:mr-1.5" /><span className="hidden sm:inline text-xs">Focus</span>
@@ -333,8 +365,7 @@ export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorPr
 
       <div ref={editorRef} className="max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-8 py-6">
         {segments.map((segment, index) => (
-          !segment.text.trim() ? null :
-          <div key={segment.id}>
+          <div key={segment.id} className={!segment.text.trim() ? 'opacity-40' : ''}>
             <SegmentEditor segment={segment} index={index}
               isActive={activeSegmentIndex === index}
               isSearchMatch={searchMatches.some(m => m.segmentIndex === index)}
@@ -343,14 +374,21 @@ export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorPr
               prevSpeaker={index > 0 ? segments[index - 1].speaker : undefined}
               siblingCount={segments.filter(s => s.speaker === segment.speaker).length}
               isFirst={index === 0}
+              isLast={index === segments.length - 1}
               onChange={text => handleTextChange(index, text)}
               onSpeakerChange={(sp, all) => handleSpeakerChange(index, sp, all)}
               onRevertHeading={() => handleRevertHeading(index)}
               onSeekRequest={seekPlayer}
               onSplit={(before, after) => handleSplit(index, before, after)}
               onMergeWithPrevious={text => handleMerge(index, text)}
+              onNavigateNext={() => setPendingFocus({ index: index + 1, cursorPos: 0 })}
+              onNavigatePrevious={() => setPendingFocus({ index: index - 1, cursorPos: -1 })}
             />
-            <InsertHeadingDivider onInsert={level => handleInsertHeading(index, level)} />
+            <InsertHeadingDivider
+              isMarked={markedIndex === index}
+              onSetMarker={() => setMarker(markedIndex === index ? null : index)}
+              onInsert={level => handleInsertHeading(index, level)}
+            />
           </div>
         ))}
         {segments.length === 0 && <div className="text-center py-16 text-muted-foreground text-sm">No segments to edit.</div>}
@@ -361,7 +399,7 @@ export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorPr
 
 interface SegmentEditorProps {
   segment: TranscriptSegment; index: number; isActive: boolean; isSearchMatch: boolean
-  isCurrentMatch: boolean; searchQuery: string; siblingCount: number; isFirst: boolean
+  isCurrentMatch: boolean; searchQuery: string; siblingCount: number; isFirst: boolean; isLast: boolean
   prevSpeaker: string | null | undefined
   onChange: (text: string) => void
   onSpeakerChange: (newSpeaker: string, applyAll: boolean) => void
@@ -369,6 +407,8 @@ interface SegmentEditorProps {
   onSeekRequest: (seconds: number) => void
   onSplit: (before: string, after: string) => void
   onMergeWithPrevious: (currentText: string) => void
+  onNavigateNext: () => void
+  onNavigatePrevious: () => void
 }
 
 function escapeRegex(s: string) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
@@ -385,7 +425,7 @@ function applyHighlight(el: HTMLDivElement, text: string, query: string, isCurre
   el.innerHTML = html
 }
 
-function SegmentEditor({ segment, index, isActive, isSearchMatch, isCurrentMatch, searchQuery, siblingCount, isFirst, prevSpeaker, onChange, onSpeakerChange, onRevertHeading, onSeekRequest, onSplit, onMergeWithPrevious }: SegmentEditorProps) {
+function SegmentEditor({ segment, index, isActive, isSearchMatch, isCurrentMatch, searchQuery, siblingCount, isFirst, isLast, prevSpeaker, onChange, onSpeakerChange, onRevertHeading, onSeekRequest, onSplit, onMergeWithPrevious, onNavigateNext, onNavigatePrevious }: SegmentEditorProps) {
   const contentRef = useRef<HTMLDivElement>(null)
   const lastDomTextRef = useRef(segment.text)
   const [editingSpeaker, setEditingSpeaker] = useState(false)
@@ -429,18 +469,34 @@ function SegmentEditor({ segment, index, isActive, isSearchMatch, isCurrentMatch
   }, [onChange])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const el = contentRef.current; if (!el) return
+    const text = el.textContent ?? ''
+    const offset = getCaretOffset(el)
+    const textLength = text.length
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      const el = contentRef.current; if (!el) return
-      const full = el.textContent ?? ''; const offset = getCaretOffset(el)
-      onSplit(full.slice(0, offset), full.slice(offset))
+      onSplit(text.slice(0, offset), text.slice(offset))
     }
     if (e.key === 'Backspace' && !isFirst) {
-      if (getCaretOffset(contentRef.current!) === 0) {
-        e.preventDefault(); onMergeWithPrevious(contentRef.current?.textContent ?? '')
+      // Merge at start of any segment (filled or empty)
+      if (offset === 0) {
+        e.preventDefault(); onMergeWithPrevious(text)
       }
     }
-  }, [isFirst, onSplit, onMergeWithPrevious])
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      // Go to next segment if at the end
+      if (offset === textLength && !isLast) {
+        e.preventDefault(); onNavigateNext()
+      }
+    }
+    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      // Go to previous segment if at the start
+      if (offset === 0 && !isFirst) {
+        e.preventDefault(); onNavigatePrevious()
+      }
+    }
+  }, [isFirst, isLast, onSplit, onMergeWithPrevious, onNavigateNext, onNavigatePrevious])
 
   const commitSpeaker = useCallback((draft: string) => {
     const trimmed = draft.trim()
@@ -544,7 +600,7 @@ function SegmentEditor({ segment, index, isActive, isSearchMatch, isCurrentMatch
               if (el && el.innerHTML !== el.textContent) el.textContent = segment.text
             }}
             onBlur={() => setIsFocused(false)}
-            className={['outline-none leading-relaxed rounded px-1 -mx-1 focus:bg-blue-50/30 dark:focus:bg-blue-900/10', segment.isHeading ? (segment.headingLevel === 1 ? 'text-xl font-bold' : segment.headingLevel === 2 ? 'text-lg font-semibold' : 'text-base font-medium') : 'text-sm sm:text-base text-foreground'].join(' ')} />
+            className={['outline-none leading-relaxed rounded px-1 -mx-1 focus:bg-blue-50/30 dark:focus:bg-blue-900/10 whitespace-pre-wrap break-words', segment.isHeading ? (segment.headingLevel === 1 ? 'text-xl font-bold' : segment.headingLevel === 2 ? 'text-lg font-semibold' : 'text-base font-medium') : 'text-sm sm:text-base text-foreground'].join(' ')} />
         </div>
       </div>
     </div>
@@ -553,7 +609,7 @@ function SegmentEditor({ segment, index, isActive, isSearchMatch, isCurrentMatch
 
 // ─── Insert heading divider ───────────────────────────────────────────────────
 
-function InsertHeadingDivider({ onInsert }: { onInsert: (level: number) => void }) {
+function InsertHeadingDivider({ isMarked, onSetMarker, onInsert }: { isMarked: boolean; onSetMarker: () => void; onInsert: (level: number) => void }) {
   const [open, setOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
 
@@ -563,20 +619,46 @@ function InsertHeadingDivider({ onInsert }: { onInsert: (level: number) => void 
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setOpen(false) }}
     >
-      <div className={`absolute inset-x-0 top-1/2 -translate-y-1/2 h-px transition-colors ${hovered ? 'bg-primary/40' : 'bg-border/30'}`} />
+      {/* Divider line — highlighted if marked */}
+      <div
+        className={`absolute inset-x-0 top-1/2 -translate-y-1/2 h-px transition-colors ${
+          isMarked
+            ? 'bg-amber-400/60 dark:bg-amber-500/60'
+            : hovered
+              ? 'bg-primary/40'
+              : 'bg-border/30'
+        }`}
+      />
 
-      {hovered && (
-        <button
-          onClick={() => setOpen(o => !o)}
-          className="absolute left-0 z-10 flex items-center justify-center w-5 h-5 rounded-full bg-background border border-border text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary text-xs font-bold leading-none shadow-sm"
-          title="Insert heading"
-        >
-          +
-        </button>
+      {(hovered || isMarked) && (
+        <div className="absolute left-0 z-10 flex items-center gap-1">
+          {/* Marker button */}
+          <button
+            onClick={onSetMarker}
+            style={{
+              borderColor: isMarked ? '#b45309' : 'var(--border)',
+              color: isMarked ? '#b45309' : 'var(--muted-foreground)',
+              backgroundColor: isMarked ? '#fef3c7' : 'var(--background)',
+            }}
+            className="flex items-center justify-center w-5 h-5 rounded-full border transition-all shadow-sm dark:border-amber-400 dark:bg-background dark:text-amber-400"
+            title={isMarked ? 'Clear marker' : 'Mark as left off here'}
+          >
+            <Bookmark className="w-3 h-3 fill-current" />
+          </button>
+
+          {/* Heading menu button */}
+          <button
+            onClick={() => setOpen(o => !o)}
+            className="flex items-center justify-center w-5 h-5 rounded-full bg-background border border-border text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary text-xs font-bold leading-none shadow-sm"
+            title="Insert heading"
+          >
+            +
+          </button>
+        </div>
       )}
 
       {open && (
-        <div className="absolute left-6 z-20 flex items-center gap-1 bg-popover border border-border rounded-md shadow-md px-2 py-1">
+        <div className="absolute left-12 z-20 flex items-center gap-1 bg-popover border border-border rounded-md shadow-md px-2 py-1">
           {([1, 2, 3] as const).map(lvl => (
             <button
               key={lvl}

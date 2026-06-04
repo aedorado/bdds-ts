@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { getLectures, createLecture, CreateLectureSchema } from '@/lib/db/queries'
 import { hasRole } from '@/lib/auth/middleware'
+import { awardLectureInputBonus } from '@/lib/points'
 
 /**
  * GET /api/lectures - List lectures with pagination
@@ -42,6 +43,8 @@ export async function POST(request: NextRequest) {
     const validated = CreateLectureSchema.parse(body)
 
     const lecture = await createLecture(validated, session.userId)
+
+    await awardLectureInputBonus(session.userId, lecture.id)
 
     return NextResponse.json(lecture, { status: 201 })
   } catch (error) {

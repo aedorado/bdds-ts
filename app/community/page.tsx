@@ -90,44 +90,80 @@ export default async function CommunityPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Badge Tiers</CardTitle>
-            <CardDescription>Unlock badges as you accumulate seva points</CardDescription>
+            <CardDescription>Journey through the 9 stages of bhakti as you accumulate seva points</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getBadgeColor('Beginner')}`}>
-                  Beginner
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getBadgeColor('Shraddha')}`}>
+                  Shraddha
                 </span>
-                <span className="text-sm text-muted-foreground">0 - 999 points</span>
+                <span className="text-sm text-muted-foreground">0 - 499 points</span>
               </div>
-              <span className="text-sm font-semibold">⭐</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getBadgeColor('Contributor')}`}>
-                  Contributor
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getBadgeColor('Sadhu-sanga')}`}>
+                  Sadhu-sanga
                 </span>
-                <span className="text-sm text-muted-foreground">1,000 - 4,999 points</span>
+                <span className="text-sm text-muted-foreground">500 - 1,999 points</span>
               </div>
-              <span className="text-sm font-semibold">🌱</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getBadgeColor('Sevak')}`}>
-                  Sevak
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getBadgeColor('Bhajana-kriya')}`}>
+                  Bhajana-kriya
+                </span>
+                <span className="text-sm text-muted-foreground">2,000 - 4,999 points</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getBadgeColor('Anartha-nivritti')}`}>
+                  Anartha-nivritti
                 </span>
                 <span className="text-sm text-muted-foreground">5,000 - 9,999 points</span>
               </div>
-              <span className="text-sm font-semibold">🌾</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getBadgeColor('Mahabhagavat')}`}>
-                  Mahabhagavat
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getBadgeColor('Nishtha')}`}>
+                  Nishtha
                 </span>
-                <span className="text-sm text-muted-foreground">10,000+ points</span>
+                <span className="text-sm text-muted-foreground">10,000 - 19,999 points</span>
               </div>
-              <span className="text-sm font-semibold">👑</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getBadgeColor('Ruchi')}`}>
+                  Ruchi
+                </span>
+                <span className="text-sm text-muted-foreground">20,000 - 29,999 points</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getBadgeColor('Asakti')}`}>
+                  Asakti
+                </span>
+                <span className="text-sm text-muted-foreground">30,000 - 39,999 points</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getBadgeColor('Rati')}`}>
+                  Rati
+                </span>
+                <span className="text-sm text-muted-foreground">40,000 - 49,999 points</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getBadgeColor('Prema')}`}>
+                  Prema
+                </span>
+                <span className="text-sm text-muted-foreground">50,000+ points</span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -205,11 +241,12 @@ export default async function CommunityPage() {
       <div className="mt-8 p-6 bg-saffron-50 dark:bg-saffron-900/20 rounded-lg border border-saffron-200 dark:border-saffron-800">
         <h3 className="font-semibold mb-3">How to Earn Seva Points</h3>
         <ul className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-sm text-muted-foreground">
-          <li>✓ Active editing — <span className="text-foreground font-medium">1 pt / minute</span></li>
-          <li>✓ Mark corrections complete — <span className="text-foreground font-medium">+100 pts</span></li>
-          <li>✓ Mark proofreading complete — <span className="text-foreground font-medium">+50 pts</span></li>
-          <li>✓ Hourly milestone bonus — <span className="text-foreground font-medium">+10 / +20 / +30 / +40 pts</span></li>
-          <li>✓ Daily editing streak — <span className="text-foreground font-medium">+1 pt on day 1, +2 on day 2 …</span></li>
+          <li>✓ Daily login — <span className="text-foreground font-medium">+5 pts / day</span></li>
+          <li>✓ Active editing — <span className="text-foreground font-medium">+5 pts / 5 mins</span></li>
+          <li>✓ Activity detected via keyboard, mouse, or touch</li>
+          <li>✓ Auto-save with 2-second debounce while editing</li>
+          <li>✓ Real-time points earned notifications</li>
+          <li>✓ Track your progress on the leaderboard</li>
         </ul>
       </div>
     </div>

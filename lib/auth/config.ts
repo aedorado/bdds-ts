@@ -3,6 +3,7 @@ import Google from 'next-auth/providers/google'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { getPostHogClient } from '@/lib/posthog-server'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -23,6 +24,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         console.log('Checking for existing user:', user.email)
         const existing = await db.select().from(users).where(eq(users.email, user.email)).limit(1)
 
+        let isNewUser = false
         if (existing.length === 0) {
           console.log('Creating new user:', user.email)
           await db.insert(users).values({
@@ -31,12 +33,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             avatarUrl: user.image,
             role: 'viewer',
           })
+          isNewUser = true
         } else {
           console.log('Updating existing user:', user.email)
           await db
             .update(users)
             .set({ name: user.name ?? existing[0].name, avatarUrl: user.image ?? existing[0].avatarUrl })
             .where(eq(users.email, user.email))
+        }
+
+        const dbUser = isNewUser
+          ? (await db.select().from(users).where(eq(users.email, user.email!)).limit(1))[0]
+          : existing[0]
+        if (dbUser) {
+          const posthog = getPostHogClient()
+          posthog.identify({
+            distinctId: String(dbUser.id),
+            properties: { email: user.email, name: user.name ?? dbUser.name, role: dbUser.role },
+          })
+          posthog.capture({
+            distinctId: String(dbUser.id),
+            event: 'user_logged_in',
+            properties: { auth_method: 'google', is_new_user: isNewUser, role: dbUser.role },
+          })
+          await posthog.shutdown()
         }
 
         console.log('Sign-in successful for:', user.email)
@@ -56,6 +76,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.role = dbUser[0].role
           token.name = dbUser[0].name
           token.picture = dbUser[0].avatarUrl ?? token.picture
+          token.sessionVersion = dbUser[0].sessionVersion ?? 0 // Store session version in token with fallback
         }
       }
       return token

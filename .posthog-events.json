@@ -1,0 +1,67 @@
+[
+  {
+    "event": "user_logged_in",
+    "description": "Fired when a user successfully logs in (dev auth or Google OAuth)",
+    "file": "app/dev-login/page.tsx"
+  },
+  {
+    "event": "lecture_created",
+    "description": "Fired when an admin successfully creates a new lecture",
+    "file": "lib/db/actions.ts"
+  },
+  {
+    "event": "lecture_deleted",
+    "description": "Fired when an admin deletes a lecture",
+    "file": "lib/db/actions.ts"
+  },
+  {
+    "event": "lecture_published",
+    "description": "Fired when an admin publishes a lecture (status: proofread → published)",
+    "file": "lib/db/actions.ts"
+  },
+  {
+    "event": "lecture_viewed",
+    "description": "Fired when a user views a lecture detail page — top of content engagement funnel",
+    "file": "app/lecture/[slug]/page.tsx"
+  },
+  {
+    "event": "transcript_searched",
+    "description": "Fired when a user submits a search query on the search page",
+    "file": "app/search/page.tsx"
+  },
+  {
+    "event": "search_result_clicked",
+    "description": "Fired when a user clicks on a search result card to view a lecture",
+    "file": "app/search/page.tsx"
+  },
+  {
+    "event": "transcript_editing_started",
+    "description": "Fired when a contributor opens the transcript editor",
+    "file": "app/lecture/[slug]/edit/edit-client.tsx"
+  },
+  {
+    "event": "transcript_saved",
+    "description": "Fired when a transcript is saved (autosave or manual Ctrl+S)",
+    "file": "app/lecture/[slug]/edit/edit-client.tsx"
+  },
+  {
+    "event": "transcript_corrected",
+    "description": "Fired when a corrector marks their transcript corrections as complete (assigned → corrected)",
+    "file": "lib/db/actions.ts"
+  },
+  {
+    "event": "transcript_proofread",
+    "description": "Fired when a proofreader marks proofreading as complete (corrected → proofread)",
+    "file": "lib/db/actions.ts"
+  },
+  {
+    "event": "corrector_assigned",
+    "description": "Fired when an admin assigns a corrector to a lecture",
+    "file": "lib/db/actions.ts"
+  },
+  {
+    "event": "comment_added",
+    "description": "Fired when a user adds a comment on a lecture transcript",
+    "file": "app/api/lectures/[id]/comments/route.ts"
+  }
+]

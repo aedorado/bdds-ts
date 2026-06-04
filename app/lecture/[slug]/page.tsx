@@ -11,6 +11,10 @@ import { hasRole } from '@/lib/auth/middleware'
 import { cn } from '@/lib/utils'
 import { StatusActionButton } from './status-action-button'
 import { BackButton } from './back-button'
+import { MediaPlayerWrapper } from '@/components/media/media-player-wrapper'
+import { TranscriptSyncWrapper } from './transcript-sync-wrapper'
+import { TranscriptEditorProvider } from '@/lib/transcript'
+import { parseTranscript } from '@/lib/transcript/parser'
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -218,243 +222,158 @@ export default async function LecturePage({ params }: Props) {
           </div>
         </header>
 
-        {/* Two-column layout on large screens when there's sidebar content */}
-        <div className={hasSidebar ? 'flex flex-col lg:grid lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] lg:gap-10 lg:items-start' : ''}>
+        {/* Two-column layout wrapped in single context provider for sync */}
+        <TranscriptEditorProvider>
+          <div className={hasSidebar ? 'flex flex-col lg:grid lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] lg:gap-10 lg:items-start' : ''}>
 
-          {/* ── Main column ── */}
-          <article className="order-2 lg:order-1 mt-6 lg:mt-0">
-            {/* AI Summary */}
-            {lecture.ai?.summary && (
-              <Card className="mb-8 border-saffron-200 bg-saffron-50 dark:bg-saffron-950/20 dark:border-saffron-800">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-saffron-600" />
-                    Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="leading-relaxed">{lecture.ai.summary}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Full Transcript */}
-            {transcriptBlocks.length > 0 ? (
-              <Card className="mb-8">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4" />
-                    Transcript
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4 text-sm leading-relaxed">
-                    {transcriptBlocks.map((block, i) => (
-                      <div key={i}>
-                        {block.speaker && (
-                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                            {block.speaker}
-                          </p>
-                        )}
-                        <p className="text-foreground/90">
-                          <TranscriptText text={block.text} showTimestamps={!!canEdit} />
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="mb-8 border-dashed">
-                <CardContent className="py-8 text-center text-muted-foreground text-sm">
-                  No transcript available yet.
-                </CardContent>
-              </Card>
-            )}
-          </article>
-
-          {/* ── Sidebar ── */}
-          {hasSidebar && (
-            <aside className="order-1 lg:order-2 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto lg:pr-1 space-y-6">
-
-              {/* Key Teachings */}
-              {lecture.ai?.keyTeachings?.length ? (
-                <Card>
+            {/* ── Main column ── */}
+            <article className="order-2 lg:order-1 mt-6 lg:mt-0">
+              {/* AI Summary */}
+              {lecture.ai?.summary && (
+                <Card className="mb-8 border-saffron-200 bg-saffron-50 dark:bg-saffron-950/20 dark:border-saffron-800">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
-                      <Lightbulb className="w-4 h-4 text-amber-500" />
-                      Key Teachings
+                      <BookOpen className="w-4 h-4 text-saffron-600" />
+                      Summary
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ol className="space-y-3 list-none">
-                      {lecture.ai.keyTeachings.map((t, i) => (
-                        <li key={i} className="flex gap-3 text-sm">
-                          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center mt-0.5">
-                            {i + 1}
-                          </span>
-                          <span className="leading-relaxed">{t}</span>
-                        </li>
-                      ))}
-                    </ol>
+                    <p className="leading-relaxed">{lecture.ai.summary}</p>
                   </CardContent>
                 </Card>
-              ) : null}
+              )}
 
-              {/* Themes */}
-              {lecture.ai?.themes?.length ? (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-violet-500" />
-                      Themes
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {lecture.ai.themes.map((theme, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />
-                          {theme}
-                        </li>
-                      ))}
-                    </ul>
+              {/* Full Transcript */}
+              {transcriptBlocks.length > 0 ? (
+                <TranscriptSyncWrapper blocks={transcriptBlocks} />
+              ) : (
+                <Card className="mb-8 border-dashed">
+                  <CardContent className="py-8 text-center text-muted-foreground text-sm">
+                    No transcript available yet.
                   </CardContent>
                 </Card>
-              ) : null}
+              )}
+            </article>
 
-              {/* Tags */}
-              {lecture.tags?.length ? (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Tag className="w-4 h-4 text-muted-foreground" />
-                      Tags
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {lecture.tags.map((tag) => (
-                        <Link
-                          key={tag}
-                          href={`/search?q=${encodeURIComponent(tag)}`}
-                          className="text-xs px-2.5 py-1 bg-muted hover:bg-muted/80 rounded-full transition-colors"
-                        >
-                          {tag}
-                        </Link>
-                      ))}
+            {/* ── Sidebar ── */}
+            {hasSidebar && (
+              <aside className="order-1 lg:order-2 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto lg:pr-1 space-y-6">
+
+                  {/* Key Teachings */}
+                  {lecture.ai?.keyTeachings?.length ? (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Lightbulb className="w-4 h-4 text-amber-500" />
+                          Key Teachings
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ol className="space-y-3 list-none">
+                          {lecture.ai.keyTeachings.map((t, i) => (
+                            <li key={i} className="flex gap-3 text-sm">
+                              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center mt-0.5">
+                                {i + 1}
+                              </span>
+                              <span className="leading-relaxed">{t}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+
+                  {/* Themes */}
+                  {lecture.ai?.themes?.length ? (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Layers className="w-4 h-4 text-violet-500" />
+                          Themes
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-2">
+                          {lecture.ai.themes.map((theme, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm">
+                              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />
+                              {theme}
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+
+                  {/* Tags */}
+                  {lecture.tags?.length ? (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Tag className="w-4 h-4 text-muted-foreground" />
+                          Tags
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-wrap gap-2">
+                          {lecture.tags.map((tag) => (
+                            <Link
+                              key={tag}
+                              href={`/search?q=${encodeURIComponent(tag)}`}
+                              className="text-xs px-2.5 py-1 bg-muted hover:bg-muted/80 rounded-full transition-colors"
+                            >
+                              {tag}
+                            </Link>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+
+                  {/* Media */}
+                  {(lecture.youtubeUrl || lecture.audioUrl) && (
+                    <div className="rounded-xl overflow-hidden border border-slate-700/50 shadow-lg">
+                      <MediaPlayerWrapper youtubeUrl={lecture.youtubeUrl} audioUrl={lecture.audioUrl} />
                     </div>
-                  </CardContent>
-                </Card>
-              ) : null}
+                  )}
 
-              {/* Media */}
-              {(lecture.youtubeUrl || lecture.audioUrl) && (
-                <Card>
-                  <CardHeader className="pb-3"><CardTitle className="text-base">Media</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
-                    {lecture.youtubeUrl && (
-                      <a
-                        href={lecture.youtubeUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-saffron-600 hover:underline text-sm font-medium block"
-                      >
-                        Watch on YouTube →
-                      </a>
-                    )}
-                    {lecture.audioUrl && (
-                      <audio controls className="w-full">
-                        <source src={lecture.audioUrl} />
-                      </audio>
-                    )}
-                  </CardContent>
-                </Card>
+                  {/* Notes */}
+                  {lecture.notes && (
+                    <Card>
+                      <CardHeader className="pb-3"><CardTitle className="text-base">Notes</CardTitle></CardHeader>
+                      <CardContent>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed">{lecture.notes}</p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                </aside>
               )}
-
-              {/* Notes */}
-              {lecture.notes && (
-                <Card>
-                  <CardHeader className="pb-3"><CardTitle className="text-base">Notes</CardTitle></CardHeader>
-                  <CardContent>
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{lecture.notes}</p>
-                  </CardContent>
-                </Card>
-              )}
-
-            </aside>
-          )}
-        </div>
+            </div>
+        </TranscriptEditorProvider>
       </div>
     </>
   )
 }
 
-// ─── Inline timestamp renderer ────────────────────────────────────────────────
-// Splits text on (H:MM:SS) / (MM:SS) patterns and renders timestamps dimmed.
-
-const INLINE_TS_RE = /(\(\d+:\d{2}(?::\d{2})?\))/g
-
-function TranscriptText({ text, showTimestamps }: { text: string; showTimestamps: boolean }) {
-  const parts = text.split(INLINE_TS_RE)
-  return (
-    <>
-      {parts.map((part, i) =>
-        /^\(\d+:\d{2}(?::\d{2})?\)$/.test(part) ? (
-          showTimestamps ? (
-            <span key={i} className="text-[11px] text-muted-foreground/60 font-mono mx-0.5 select-none">
-              {part}
-            </span>
-          ) : null
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </>
-  )
-}
-
-// ─── Viewer grouping ──────────────────────────────────────────────────────────
+// ─── Transcript grouping ──────────────────────────────────────────────────────
 // Splits transcript on blank lines (the natural paragraph breaks already in the
 // raw text). Each non-empty chunk becomes one paragraph. Chunks that are purely
 // a speaker label are treated as headers rather than body text.
 
-interface TranscriptBlock { speaker: string | null; text: string }
+interface TranscriptBlock { speaker: string | null; text: string; isHeading?: boolean; headingLevel?: number | null; timestampLabel?: string | null; timestampSeconds?: number | null }
 
 function groupTranscriptBySpeaker(raw: string): TranscriptBlock[] {
-  const chunks = raw.split(/\n{2,}/).map(c => c.trim()).filter(Boolean)
+  const segments = parseTranscript(raw)
 
-  // Matches legacy "[Speaker 1]" pure-label chunks
-  const LEGACY_LABEL_RE = /^\[?Speaker\s+\d+\]?(\s*\(.*?\))?$/i
-  // Matches a timestamp at the start of a line: (58:47) or (1:00:25)
-  const TIMESTAMP_START_RE = /^\(\d+:\d{2}(?::\d{2})?\)/
-
-  const blocks: TranscriptBlock[] = []
-  let currentSpeaker: string | null = null
-
-  for (const chunk of chunks) {
-    if (LEGACY_LABEL_RE.test(chunk)) {
-      currentSpeaker = chunk
-      continue
-    }
-
-    const lines = chunk.split('\n')
-    const firstLine = lines[0].trim()
-    const rest = lines.slice(1).join('\n').trim()
-
-    // Named-speaker format: first line is a short name with no timestamp,
-    // second line starts with a timestamp → split into speaker + text
-    if (
-      rest &&
-      firstLine.length <= 80 &&
-      !TIMESTAMP_START_RE.test(firstLine) &&
-      TIMESTAMP_START_RE.test(rest)
-    ) {
-      blocks.push({ speaker: firstLine, text: rest })
-    } else {
-      blocks.push({ speaker: currentSpeaker, text: chunk })
-    }
-  }
+  const blocks: TranscriptBlock[] = segments.map(seg => ({
+    speaker: seg.speaker,
+    text: seg.timestampLabel ? `(${seg.timestampLabel}) ${seg.text}` : seg.text,
+    isHeading: seg.isHeading,
+    headingLevel: seg.headingLevel,
+    timestampLabel: seg.timestampLabel,
+    timestampSeconds: seg.timestampSeconds,
+  }))
 
   return blocks
 }

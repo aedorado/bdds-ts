@@ -53,7 +53,7 @@ export function TranscriptEditor({ initialSegments, onSave }: TranscriptEditorPr
       } finally {
         setIsSaving(false)
       }
-    }, 2000)
+    }, 15000)
   }, [onSave])
 
   const triggerSave = useCallback((segs: TranscriptSegment[]) => {

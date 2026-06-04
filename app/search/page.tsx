@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { signIn } from 'next-auth/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { User, Search as SearchIcon } from 'lucide-react'
+import { User, Search as SearchIcon, LogIn } from 'lucide-react'
+import posthog from 'posthog-js'
 
 interface SearchResult {
   lectureId: number
@@ -36,6 +38,8 @@ export default function SearchPage() {
   const [totalPages, setTotalPages] = useState(0)
   const [isAdmin, setIsAdmin] = useState(false)
 
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
+
   const [searchQuery, setSearchQuery] = useState('')
   const [committedQuery, setCommittedQuery] = useState('')
   const [selectedSpeaker, setSelectedSpeaker] = useState('')
@@ -44,6 +48,12 @@ export default function SearchPage() {
   const [speakers, setSpeakers] = useState<string[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [filtersLoading, setFiltersLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/session').then(r => r.json()).then(data => {
+      setIsLoggedIn(!!data?.userId)
+    }).catch(() => setIsLoggedIn(false))
+  }, [])
 
   useEffect(() => {
     async function fetchFilters() {
@@ -96,6 +106,14 @@ export default function SearchPage() {
   const handleSubmit = () => {
     setPage(1)
     setCommittedQuery(searchQuery)
+    if (searchQuery.trim()) {
+      posthog.capture('transcript_searched', {
+        query: searchQuery,
+        speaker_filter: selectedSpeaker || null,
+        category_filter: selectedCategory || null,
+        search_all: searchAll,
+      })
+    }
   }
 
   const handleReset = () => {
@@ -109,11 +127,32 @@ export default function SearchPage() {
 
   return (
     <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="mb-12">
-        <h1 className="text-4xl font-bold font-heading mb-2">Search Lectures</h1>
-        <p className="text-muted-foreground">
-          Find devotional lectures by keyword, speaker, or category
-        </p>
+      <div className="mb-12 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-bold font-heading mb-2">Search Lectures</h1>
+          <p className="text-muted-foreground">
+            Find devotional lectures by keyword, speaker, or category
+          </p>
+        </div>
+        {isLoggedIn === false && (
+          process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH === 'true' ? (
+            <Link href="/dev-login">
+              <Button variant="outline" className="gap-2 shrink-0">
+                <LogIn className="w-4 h-4" />
+                Sign In
+              </Button>
+            </Link>
+          ) : (
+            <Button
+              variant="outline"
+              className="gap-2 shrink-0"
+              onClick={() => signIn('google', { callbackUrl: '/search' })}
+            >
+              <LogIn className="w-4 h-4" />
+              Sign In
+            </Button>
+          )
+        )}
       </div>
 
       {/* Search & Filters */}
@@ -212,7 +251,18 @@ export default function SearchPage() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
             {results.map((result) => (
-              <Link key={result.lectureId} href={`/lecture/${result.slug}`}>
+              <Link
+                key={result.lectureId}
+                href={`/lecture/${result.slug}`}
+                onClick={() => posthog.capture('search_result_clicked', {
+                  lecture_id: result.lectureId,
+                  slug: result.slug,
+                  title: result.title,
+                  speaker: result.speaker,
+                  query: committedQuery,
+                  position: results.indexOf(result) + 1,
+                })}
+              >
                 <Card className="h-full cursor-pointer hover:shadow-lg hover:border-saffron-400 transition-all">
                   <CardHeader>
                     <div className="flex items-start justify-between gap-2">

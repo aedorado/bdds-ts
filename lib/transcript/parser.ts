@@ -41,19 +41,27 @@ export function parseTranscript(raw: string): TranscriptSegment[] {
       continue
     }
 
-    // Check for timestamp
-    const timestampMatch = trimmed.match(/^\[?(\d{1,2}):(\d{2})(?::(\d{2}))?\]?/)
+    // Check for timestamp - supports [HH:MM], (HH:MM), HH:MM formats
+    const timestampMatch = trimmed.match(/^[\[\(]?(\d{1,2}):(\d{2})(?::(\d{2}))?[\]\)]?/)
     let timestampSeconds: number | null = null
     let timestampLabel: string | null = null
     let textContent = trimmed
 
     if (timestampMatch) {
-      const hours = parseInt(timestampMatch[1], 10)
-      const minutes = parseInt(timestampMatch[2], 10)
-      const seconds = timestampMatch[3] ? parseInt(timestampMatch[3], 10) : 0
+      const a = parseInt(timestampMatch[1], 10)
+      const b = parseInt(timestampMatch[2], 10)
+      const c = timestampMatch[3] ? parseInt(timestampMatch[3], 10) : null
 
-      timestampSeconds = hours * 3600 + minutes * 60 + seconds
-      timestampLabel = `${hours}:${minutes.toString().padStart(2, '0')}${seconds > 0 ? `:${seconds.toString().padStart(2, '0')}` : ''}`
+      // Format is either (M:SS) or (H:MM:SS)
+      if (c !== null) {
+        // Has 3 parts: (H:MM:SS)
+        timestampSeconds = a * 3600 + b * 60 + c
+        timestampLabel = `${a}:${b.toString().padStart(2, '0')}:${c.toString().padStart(2, '0')}`
+      } else {
+        // Has 2 parts: (M:SS)
+        timestampSeconds = a * 60 + b
+        timestampLabel = `${a}:${b.toString().padStart(2, '0')}`
+      }
 
       // Remove timestamp from text
       textContent = trimmed.substring(timestampMatch[0].length).trim()
@@ -113,6 +121,37 @@ export function parseTranscript(raw: string): TranscriptSegment[] {
 }
 
 /**
+ * Extract timestamp from the start of text
+ * Returns { timestampSeconds, timestampLabel, cleanText }
+ */
+export function extractTimestamp(text: string): { timestampSeconds: number | null; timestampLabel: string | null; cleanText: string } {
+  const trimmed = text.trim()
+  const timestampMatch = trimmed.match(/^[\[\(]?(\d{1,2}):(\d{2})(?::(\d{2}))?[\]\)]?/)
+
+  if (!timestampMatch) {
+    return { timestampSeconds: null, timestampLabel: null, cleanText: text }
+  }
+
+  const a = parseInt(timestampMatch[1], 10)
+  const b = parseInt(timestampMatch[2], 10)
+  const c = timestampMatch[3] ? parseInt(timestampMatch[3], 10) : null
+
+  let timestampSeconds: number | null = null
+  let timestampLabel: string | null = null
+
+  if (c !== null) {
+    timestampSeconds = a * 3600 + b * 60 + c
+    timestampLabel = `${a}:${b.toString().padStart(2, '0')}:${c.toString().padStart(2, '0')}`
+  } else {
+    timestampSeconds = a * 60 + b
+    timestampLabel = `${a}:${b.toString().padStart(2, '0')}`
+  }
+
+  const cleanText = trimmed.substring(timestampMatch[0].length).trim()
+  return { timestampSeconds, timestampLabel, cleanText }
+}
+
+/**
  * Convert segments back to raw transcript text
  */
 export function segmentsToRawTranscript(segments: TranscriptSegment[]): string {
@@ -122,7 +161,7 @@ export function segmentsToRawTranscript(segments: TranscriptSegment[]): string {
 
       // Add timestamp if present
       if (segment.timestampLabel) {
-        line += `[${segment.timestampLabel}] `
+        line += `(${segment.timestampLabel}) `
       }
 
       // Add speaker if present

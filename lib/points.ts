@@ -127,6 +127,15 @@ export async function awardCorrectionBonus(userId: number, lectureId: number) {
 }
 
 /**
+ * Award points when an admin inputs (creates) a new lecture.
+ */
+export async function awardLectureInputBonus(userId: number, lectureId: number) {
+  const BONUS = 25
+  await addPoints(userId, BONUS)
+  await logActivity(userId, 'lecture_input', { pointsAwarded: BONUS }, lectureId)
+}
+
+/**
  * Award completion bonus when proofreader marks lecture as proofread.
  */
 export async function awardProofreadBonus(userId: number, lectureId: number) {

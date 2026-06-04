@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import posthog from 'posthog-js'
 
 const DEV_USERS = [
   { id: 1, name: 'Admin', role: 'admin', email: 'admin@devotional.local' },
@@ -19,17 +20,28 @@ export default function DevLoginPage() {
   const handleLogin = async (userId: number) => {
     setIsLoading(true)
     try {
-      const res = await fetch('/api/auth/dev-login', {
+      const res = await fetch(`/api/auth/dev-login?userId=${userId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
       })
 
       if (res.ok) {
+        const data = await res.json()
+        const user = DEV_USERS.find(u => u.id === userId)
+        posthog.identify(String(userId), {
+          name: user?.name,
+          email: user?.email,
+          role: user?.role,
+        })
+        posthog.capture('user_logged_in', {
+          user_id: userId,
+          role: data.session?.role ?? user?.role,
+          auth_method: 'dev',
+        })
         router.push('/')
         router.refresh()
       }
     } catch (error) {
+      posthog.captureException(error)
       console.error('Login failed:', error)
       setIsLoading(false)
     }

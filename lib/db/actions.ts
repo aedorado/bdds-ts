@@ -13,10 +13,16 @@ import {
   getLectures,
   getAllUsers,
   updateUserRole,
+  getUserRole,
   deactivateUser,
   reactivateUser,
 } from '@/lib/db/queries'
 import { z } from 'zod'
+import { getPostHogClient } from '@/lib/posthog-server'
+import { db } from '@/lib/db'
+import { users } from '@/lib/db/schema'
+import { eq, sql } from 'drizzle-orm'
+import { validateSessionVersion } from '@/lib/auth/session'
 
 /**
  * Server action to create a new lecture
@@ -24,8 +30,32 @@ import { z } from 'zod'
 export async function createLectureAction(formData: z.infer<typeof CreateLectureSchema> & { rawTranscript?: string }) {
   const session = await withAdminRole()
 
+  // Validate session on sensitive operation
+  try {
+    const sessionVersion = (session as any).sessionVersion ?? 0
+    await validateSessionVersion(session.userId, sessionVersion)
+  } catch (error) {
+    return { success: false, error: 'Session invalid: please re-login' }
+  }
+
   try {
     const lecture = await createLecture(formData, session.userId)
+    const posthog = getPostHogClient()
+    posthog.capture({
+      distinctId: String(session.userId),
+      event: 'lecture_created',
+      properties: {
+        lecture_id: lecture.id,
+        slug: lecture.slug,
+        title: lecture.title,
+        speaker: lecture.speaker,
+        category: lecture.category ?? null,
+        has_youtube: !!formData.youtubeUrl,
+        has_audio: !!formData.audioUrl,
+        has_transcript: !!formData.rawTranscript,
+      },
+    })
+    await posthog.shutdown()
     return { success: true, lecture }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to create lecture' }
@@ -47,6 +77,14 @@ export async function updateLectureAction(
 ) {
   const _session = await withAdminRole()
 
+  // Validate session on sensitive operation
+  try {
+    const sessionVersion = (_session as any).sessionVersion ?? 0
+    await validateSessionVersion(_session.userId, sessionVersion)
+  } catch (error) {
+    return { success: false, error: 'Session invalid: please re-login' }
+  }
+
   try {
     const lecture = await updateLecture(id, data)
     return { success: true, lecture }
@@ -61,6 +99,14 @@ export async function updateLectureAction(
 export async function deleteLectureAction(id: number) {
   const session = await withAdminRole()
 
+  // Validate session on sensitive operation
+  try {
+    const sessionVersion = (session as any).sessionVersion ?? 0
+    await validateSessionVersion(session.userId, sessionVersion)
+  } catch (error) {
+    return { success: false, error: 'Session invalid: please re-login' }
+  }
+
   try {
     // Fetch the lecture to check ownership
     const existing = await getLecture(id)
@@ -70,6 +116,18 @@ export async function deleteLectureAction(id: number) {
     }
 
     await deleteLecture(id)
+    const posthog = getPostHogClient()
+    posthog.capture({
+      distinctId: String(session.userId),
+      event: 'lecture_deleted',
+      properties: {
+        lecture_id: id,
+        title: existing.title,
+        speaker: existing.speaker,
+        status: existing.status,
+      },
+    })
+    await posthog.shutdown()
     return { success: true }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to delete lecture' }
@@ -122,7 +180,15 @@ export async function getAllLecturesAction(page: number = 1, limit: number = 20)
  * Server action to assign corrector to lecture
  */
 export async function assignCorrectorAction(lectureId: number, correctorId: number | null) {
-  const _session = await withAdminRole()
+  const session = await withAdminRole()
+
+  // Validate session on sensitive operation
+  try {
+    const sessionVersion = (session as any).sessionVersion ?? 0
+    await validateSessionVersion(session.userId, sessionVersion)
+  } catch (error) {
+    return { success: false, error: 'Session invalid: please re-login' }
+  }
 
   try {
     const existing = await getLecture(lectureId)
@@ -130,6 +196,19 @@ export async function assignCorrectorAction(lectureId: number, correctorId: numb
       ? 'assigned'
       : (existing?.status === 'assigned' ? 'not_started' : existing?.status ?? 'not_started')
     const lecture = await updateLecture(lectureId, { assignedCorrectorId: correctorId, status: newStatus })
+    if (correctorId) {
+      const posthog = getPostHogClient()
+      posthog.capture({
+        distinctId: String(session.userId),
+        event: 'corrector_assigned',
+        properties: {
+          lecture_id: lectureId,
+          corrector_id: correctorId,
+          title: existing?.title ?? null,
+        },
+      })
+      await posthog.shutdown()
+    }
     return { success: true, lecture }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to assign corrector' }
@@ -141,6 +220,14 @@ export async function assignCorrectorAction(lectureId: number, correctorId: numb
  */
 export async function assignProofreaderAction(lectureId: number, proofreaderId: number | null) {
   const _session = await withAdminRole()
+
+  // Validate session on sensitive operation
+  try {
+    const sessionVersion = (_session as any).sessionVersion ?? 0
+    await validateSessionVersion(_session.userId, sessionVersion)
+  } catch (error) {
+    return { success: false, error: 'Session invalid: please re-login' }
+  }
 
   try {
     const lecture = await updateLecture(lectureId, { assignedProofreaderId: proofreaderId })
@@ -174,8 +261,28 @@ export async function updateUserRoleAction(userId: number, newRole: string) {
     return { success: false, error: 'Cannot modify your own role' }
   }
 
+  // Validate session on sensitive operation
+  try {
+    const sessionVersion = (session as any).sessionVersion ?? 0
+    await validateSessionVersion(session.userId, sessionVersion)
+  } catch (error) {
+    return { success: false, error: 'Session invalid: please re-login' }
+  }
+
+  const targetRole = await getUserRole(userId)
+  if (targetRole === 'admin') {
+    return { success: false, error: 'Cannot change the role of another admin' }
+  }
+
   try {
     const user = await updateUserRole(userId, newRole)
+
+    // Invalidate the target user's session by incrementing their sessionVersion
+    // This will cause their JWT token to be invalid on next request
+    await db.update(users)
+      .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
+      .where(eq(users.id, userId))
+
     return { success: true, user }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to update user role' }
@@ -221,6 +328,14 @@ export async function markCorrectedAction(lectureId: number) {
   const session = await getSession()
   if (!session) return { success: false, error: 'Unauthorized' }
 
+  // Validate session on sensitive operation
+  try {
+    const sessionVersion = (session as any).sessionVersion ?? 0
+    await validateSessionVersion(session.userId, sessionVersion)
+  } catch (error) {
+    return { success: false, error: 'Session invalid: please re-login' }
+  }
+
   const lecture = await getLecture(lectureId)
   if (!lecture) return { success: false, error: 'Lecture not found' }
 
@@ -233,6 +348,17 @@ export async function markCorrectedAction(lectureId: number) {
 
   const updated = await updateLecture(lectureId, { status: 'corrected' })
   await awardCorrectionBonus(session.userId, lectureId)
+  const posthog = getPostHogClient()
+  posthog.capture({
+    distinctId: String(session.userId),
+    event: 'transcript_corrected',
+    properties: {
+      lecture_id: lectureId,
+      title: lecture.title,
+      speaker: lecture.speaker,
+    },
+  })
+  await posthog.shutdown()
   return { success: true, lecture: updated }
 }
 
@@ -242,6 +368,14 @@ export async function markCorrectedAction(lectureId: number) {
 export async function markProofreadAction(lectureId: number) {
   const session = await getSession()
   if (!session) return { success: false, error: 'Unauthorized' }
+
+  // Validate session on sensitive operation
+  try {
+    const sessionVersion = (session as any).sessionVersion ?? 0
+    await validateSessionVersion(session.userId, sessionVersion)
+  } catch (error) {
+    return { success: false, error: 'Session invalid: please re-login' }
+  }
 
   const lecture = await getLecture(lectureId)
   if (!lecture) return { success: false, error: 'Lecture not found' }
@@ -255,6 +389,17 @@ export async function markProofreadAction(lectureId: number) {
 
   const updated = await updateLecture(lectureId, { status: 'proofread' })
   await awardProofreadBonus(session.userId, lectureId)
+  const posthog = getPostHogClient()
+  posthog.capture({
+    distinctId: String(session.userId),
+    event: 'transcript_proofread',
+    properties: {
+      lecture_id: lectureId,
+      title: lecture.title,
+      speaker: lecture.speaker,
+    },
+  })
+  await posthog.shutdown()
   return { success: true, lecture: updated }
 }
 
@@ -264,6 +409,14 @@ export async function markProofreadAction(lectureId: number) {
 export async function publishLectureAction(lectureId: number) {
   const _session = await withAdminRole()
 
+  // Validate session on sensitive operation
+  try {
+    const sessionVersion = (_session as any).sessionVersion ?? 0
+    await validateSessionVersion(_session.userId, sessionVersion)
+  } catch (error) {
+    return { success: false, error: 'Session invalid: please re-login' }
+  }
+
   const lecture = await getLecture(lectureId)
   if (!lecture) return { success: false, error: 'Lecture not found' }
 
@@ -272,5 +425,17 @@ export async function publishLectureAction(lectureId: number) {
   }
 
   const updated = await updateLecture(lectureId, { status: 'published' })
+  const posthog = getPostHogClient()
+  posthog.capture({
+    distinctId: String(_session.userId),
+    event: 'lecture_published',
+    properties: {
+      lecture_id: lectureId,
+      title: lecture.title,
+      speaker: lecture.speaker,
+      category: lecture.category ?? null,
+    },
+  })
+  await posthog.shutdown()
   return { success: true, lecture: updated }
 }

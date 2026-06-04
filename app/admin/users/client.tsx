@@ -228,7 +228,7 @@ export function AdminUsersClient({ initialUsers, totalUsers, currentUserId }: Ad
                     </td>
                     <td className="py-3 px-4 text-muted-foreground">{user.email}</td>
                     <td className="py-3 px-4">
-                      {user.id === currentUserId ? (
+                      {user.id === currentUserId || user.role === 'admin' ? (
                         <Badge variant="secondary" className={ROLE_COLORS[user.role]}>
                           {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                         </Badge>
@@ -239,7 +239,6 @@ export function AdminUsersClient({ initialUsers, totalUsers, currentUserId }: Ad
                           disabled={loading}
                           className={`px-2 py-1 rounded text-xs border-0 cursor-pointer ${ROLE_COLORS[user.role]}`}
                         >
-                          <option value="admin">Admin</option>
                           <option value="contributor">Contributor</option>
                           <option value="viewer">Viewer</option>
                         </select>

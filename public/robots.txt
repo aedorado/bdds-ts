@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+Allow: /api/search
+Allow: /lecture/
+Allow: /community
+Allow: /search
+
+Disallow: /admin
+Disallow: /dev-login
+Disallow: /auth-error
+Disallow: /api/admin
+Disallow: /api/auth
+Disallow: /workspace
+
+Sitemap: https://dts-liard.vercel.app/sitemap.xml
+
+# Allow search engines to crawl dynamically generated pages
+Allow: /lecture/*/

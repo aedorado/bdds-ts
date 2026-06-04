@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { comments, users } from '@/lib/db/schema'
 import { eq, asc } from 'drizzle-orm'
+import { getPostHogClient } from '@/lib/posthog-server'
 
 export async function GET(
   _request: NextRequest,
@@ -68,6 +69,18 @@ export async function POST(
       })
       .returning()
 
+    const posthog = getPostHogClient()
+    posthog.capture({
+      distinctId: String(session.userId),
+      event: 'comment_added',
+      properties: {
+        lecture_id: lectureId,
+        comment_id: result[0].id,
+        has_timestamp: timestampSeconds != null,
+        paragraph_index: paragraphIndex ?? 0,
+      },
+    })
+    await posthog.shutdown()
     return NextResponse.json(result[0], { status: 201 })
   } catch (error) {
     return NextResponse.json(

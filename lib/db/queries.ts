@@ -232,7 +232,10 @@ export async function getAllContributors() {
   return db
     .select({ id: users.id, name: users.name, email: users.email, role: users.role })
     .from(users)
-    .where(eq(users.role, 'contributor'))
+    .where(or(
+      eq(users.role, 'admin'),
+      eq(users.role, 'contributor')
+    ))
     .orderBy(users.name)
 }
 
@@ -344,6 +347,18 @@ export async function getUserWithStats(userId: number) {
     .limit(1)
 
   return result[0] || null
+}
+
+/**
+ * Get a single user's role
+ */
+export async function getUserRole(userId: number): Promise<string | null> {
+  const result = await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  return result[0]?.role ?? null
 }
 
 /**

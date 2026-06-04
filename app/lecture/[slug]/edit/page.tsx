@@ -56,6 +56,7 @@ export default async function LectureEditPage({
       segments={segments}
       userRole={session.role}
       userName={session.name}
+      userEmail={session.email}
     />
   )
 }

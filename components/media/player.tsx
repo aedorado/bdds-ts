@@ -42,6 +42,8 @@ export function MediaPlayer({ youtubeUrl, audioUrl, onTimeUpdate }: MediaPlayerP
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(1)
   const [speed, setSpeed] = useState<Speed>(1)
+  const [audioError, setAudioError] = useState(false)
+  const [bufferedEnd, setBufferedEnd] = useState(0)
 
   const audioRef = useRef<HTMLAudioElement>(null)
   const playerRef = useRef<HTMLDivElement>(null)
@@ -49,9 +51,15 @@ export function MediaPlayer({ youtubeUrl, audioUrl, onTimeUpdate }: MediaPlayerP
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const isPlayingRef = useRef(false)
   const speedRef = useRef<Speed>(1)
+  const isDraggingRef = useRef(false)
 
   useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
   useEffect(() => { speedRef.current = speed }, [speed])
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.muted = isMuted
+    }
+  }, [isMuted])
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
@@ -177,19 +185,32 @@ export function MediaPlayer({ youtubeUrl, audioUrl, onTimeUpdate }: MediaPlayerP
     // Register seek with context
     registerSeekPlayer((s) => { audio.currentTime = s })
 
-    const onTU = () => { setCurrentTimeLocal(audio.currentTime); setCurrentTime(audio.currentTime); onTimeUpdate?.(audio.currentTime) }
+    const onTU = () => {
+      if (!isDraggingRef.current) {
+        setCurrentTimeLocal(audio.currentTime)
+        setCurrentTime(audio.currentTime)
+        onTimeUpdate?.(audio.currentTime)
+      }
+    }
     const onMeta = () => setDuration(audio.duration)
     const onPlay = () => setIsPlaying(true)
     const onPause = () => setIsPlaying(false)
+    const onProgress = () => {
+      if (audio.buffered.length > 0) {
+        setBufferedEnd(audio.buffered.end(audio.buffered.length - 1))
+      }
+    }
     audio.addEventListener('timeupdate', onTU)
     audio.addEventListener('loadedmetadata', onMeta)
     audio.addEventListener('play', onPlay)
     audio.addEventListener('pause', onPause)
+    audio.addEventListener('progress', onProgress)
     return () => {
       audio.removeEventListener('timeupdate', onTU)
       audio.removeEventListener('loadedmetadata', onMeta)
       audio.removeEventListener('play', onPlay)
       audio.removeEventListener('pause', onPause)
+      audio.removeEventListener('progress', onProgress)
     }
   }, [audioUrl, setCurrentTime, onTimeUpdate, registerSeekPlayer])
 
@@ -234,14 +255,22 @@ export function MediaPlayer({ youtubeUrl, audioUrl, onTimeUpdate }: MediaPlayerP
           <>
             <input
               type="range" min="0" max={duration || 0} value={currentTime}
-              onChange={e => { const t = parseFloat(e.target.value); seekToSeconds(t) }}
+              onChange={e => setCurrentTimeLocal(parseFloat(e.target.value))}
+              onPointerDown={() => { isDraggingRef.current = true }}
+              onPointerUp={e => { isDraggingRef.current = false; seekToSeconds(parseFloat((e.target as HTMLInputElement).value)) }}
               className="flex-1 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer min-w-0"
-              style={{ background: `linear-gradient(to right,rgb(59,130,246) ${(currentTime / duration) * 100}%,rgb(51,65,85) ${(currentTime / duration) * 100}%)` }}
+              style={{
+                background: `linear-gradient(to right, rgb(59,130,246) ${(currentTime / duration) * 100}%, rgb(71,85,105) ${(currentTime / duration) * 100}%, rgb(71,85,105) ${(bufferedEnd / duration) * 100}%, rgb(51,65,85) ${(bufferedEnd / duration) * 100}%)`
+              }}
             />
             <span className="text-xs text-white/40 tabular-nums shrink-0">{formatTime(duration)}</span>
-            <audio ref={audioRef} src={audioUrl}
+            <audio
+              ref={audioRef}
+              src={convertGoogleDriveUrl(audioUrl)}
+              crossOrigin="anonymous"
               onVolumeChange={e => setVolume(e.currentTarget.volume)}
               onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
+              onError={e => console.warn('Audio load error:', e)}
             />
             <Button variant="ghost" size="sm" onClick={() => setIsMuted(!isMuted)} className="text-white hover:bg-slate-700 h-6 w-6 p-0 shrink-0">
               {isMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
@@ -277,4 +306,11 @@ function extractYoutubeId(url: string): string | null {
   const patterns = [/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/, /youtube\.com\/embed\/([^&\n?#]+)/]
   for (const p of patterns) { const m = url.match(p); if (m?.[1]) return m[1] }
   return null
+}
+
+function convertGoogleDriveUrl(url: string): string {
+  if (url.includes('drive.google.com')) {
+    return `/api/media/proxy?url=${encodeURIComponent(url)}`
+  }
+  return url
 }

@@ -19,8 +19,12 @@ const config: Config = {
         saffron: {
           50: '#fff8f0',
           100: '#ffedcc',
+          200: '#fde68a',
+          300: '#fcd34d',
           400: '#f59e0b',
           600: '#d97706',
+          700: '#b45309',
+          800: '#92400e',
           900: '#78350f',
         },
         tulasi: {
@@ -31,6 +35,7 @@ const config: Config = {
         lotus: {
           50: '#fdf2f8',
           400: '#e879f9',
+          600: '#c026d3',
           700: '#a21caf',
         },
         border: 'hsl(var(--border))',

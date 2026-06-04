@@ -65,6 +65,14 @@ interface Lecture {
   lectureDate?: Date | string | null
   createdAt: Date | string
   createdBy: number
+  notes?: string | null
+  rawTranscript?: string | null
+  tags?: string[] | null
+  durationSeconds?: number | null
+  aiGenerationStatus?: string | null
+  aiGenerationStartedAt?: Date | string | null
+  aiGenerationCompletedAt?: Date | string | null
+  aiGenerationError?: string | null
 }
 
 interface User {
@@ -205,10 +213,10 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
       audioUrl: l.audioUrl ?? '',
       place: l.place ?? '',
       lectureDate: l.lectureDate ? new Date(l.lectureDate).toISOString().slice(0, 10) : '',
-      notes: '',
-      rawTranscript: '',
-      tags: '',
-      durationSeconds: '',
+      notes: l.notes ?? '',
+      rawTranscript: l.rawTranscript ?? '',
+      tags: l.tags ? l.tags.join(', ') : '',
+      durationSeconds: l.durationSeconds ? String(l.durationSeconds) : '',
     })
   }
 
@@ -226,18 +234,30 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
     finally { setSaving(false) }
   }
 
+  const [assigningLectureId, setAssigningLectureId] = useState<number | null>(null)
+
   const handleAssignCorrector = async (lectureId: number, correctorId: number | null) => {
-    const result = await assignCorrectorAction(lectureId, correctorId)
-    if (result.success && result.lecture)
-      setLectures(prev => prev.map(l => l.id === lectureId ? { ...l, assignedCorrectorId: correctorId, status: result.lecture.status } : l))
-    else setError(result.error || 'Failed to assign corrector')
+    setAssigningLectureId(lectureId)
+    try {
+      const result = await assignCorrectorAction(lectureId, correctorId)
+      if (result.success && result.lecture)
+        setLectures(prev => prev.map(l => l.id === lectureId ? { ...l, assignedCorrectorId: correctorId, status: result.lecture.status } : l))
+      else setError(result.error || 'Failed to assign corrector')
+    } finally {
+      setAssigningLectureId(null)
+    }
   }
 
   const handleAssignProofreader = async (lectureId: number, proofreaderId: number | null) => {
-    const result = await assignProofreaderAction(lectureId, proofreaderId)
-    if (result.success)
-      setLectures(prev => prev.map(l => l.id === lectureId ? { ...l, assignedProofreaderId: proofreaderId } : l))
-    else setError(result.error || 'Failed to assign proofreader')
+    setAssigningLectureId(lectureId)
+    try {
+      const result = await assignProofreaderAction(lectureId, proofreaderId)
+      if (result.success)
+        setLectures(prev => prev.map(l => l.id === lectureId ? { ...l, assignedProofreaderId: proofreaderId } : l))
+      else setError(result.error || 'Failed to assign proofreader')
+    } finally {
+      setAssigningLectureId(null)
+    }
   }
 
   const [statusConfirm, setStatusConfirm] = useState<{ lectureId: number; fromStatus: string; toStatus: string; title: string } | null>(null)
@@ -336,24 +356,14 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
               </th>
               <th className="px-4 py-3 text-left font-medium w-40">Corrector</th>
               <th className="px-4 py-3 text-left font-medium w-40">Proofreader</th>
-              <th className="px-4 py-3 text-left w-32">
-                <button className="flex items-center font-medium hover:text-foreground" onClick={() => handleSort('lectureDate')}>
-                  Lecture Date <SortIcon col="lectureDate" />
-                </button>
-              </th>
-              <th className="px-4 py-3 text-left w-28">
-                <button className="flex items-center font-medium hover:text-foreground" onClick={() => handleSort('createdAt')}>
-                  Added <SortIcon col="createdAt" />
-                </button>
-              </th>
-              <th className="px-4 py-3 text-left font-medium w-36">Slug</th>
+              <th className="px-4 py-3 text-center font-medium w-12">AI</th>
               <th className="px-3 py-3 w-20 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {displayed.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
                   {search || filterStatus ? 'No lectures match your filters.' : 'No lectures yet. Add the first one!'}
                 </td>
               </tr>
@@ -384,37 +394,71 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
 
                 {/* Corrector */}
                 <td className="px-4 py-3">
-                  <select
-                    value={lecture.assignedCorrectorId ?? ''}
-                    onChange={e => handleAssignCorrector(lecture.id, e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full px-2 py-1 text-xs border border-border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                  >
-                    <option value="">Unassigned</option>
-                    {contributors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={lecture.assignedCorrectorId ?? ''}
+                      onChange={e => handleAssignCorrector(lecture.id, e.target.value ? parseInt(e.target.value) : null)}
+                      disabled={assigningLectureId === lecture.id}
+                      className="w-full px-2 py-1 text-xs border border-border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Unassigned</option>
+                      {contributors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    {assigningLectureId === lecture.id && (
+                      <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 animate-spin text-muted-foreground pointer-events-none" />
+                    )}
+                  </div>
                 </td>
 
                 {/* Proofreader */}
                 <td className="px-4 py-3">
-                  <select
-                    value={lecture.assignedProofreaderId ?? ''}
-                    onChange={e => handleAssignProofreader(lecture.id, e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full px-2 py-1 text-xs border border-border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                  >
-                    <option value="">Unassigned</option>
-                    {contributors.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={lecture.assignedProofreaderId ?? ''}
+                      onChange={e => handleAssignProofreader(lecture.id, e.target.value ? parseInt(e.target.value) : null)}
+                      disabled={assigningLectureId === lecture.id}
+                      className="w-full px-2 py-1 text-xs border border-border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Unassigned</option>
+                      {contributors.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    {assigningLectureId === lecture.id && (
+                      <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 animate-spin text-muted-foreground pointer-events-none" />
+                    )}
+                  </div>
                 </td>
 
-                {/* Lecture Date */}
-                <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{fmtDate(lecture.lectureDate)}</td>
-
-                {/* Added */}
-                <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{fmtDate(lecture.createdAt)}</td>
-
-                {/* Slug */}
-                <td className="px-4 py-3">
-                  <code className="text-xs text-muted-foreground">{lecture.slug}</code>
+                {/* AI Status */}
+                <td className="px-4 py-3 text-center">
+                  {!lecture.aiGenerationStatus ? (
+                    <button
+                      title="AI generation not started"
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold hover:bg-slate-300 transition-colors"
+                    >
+                      AI
+                    </button>
+                  ) : lecture.aiGenerationStatus === 'pending' ? (
+                    <button
+                      title="AI generation in progress"
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-bold animate-pulse hover:bg-yellow-200 transition-colors"
+                    >
+                      AI
+                    </button>
+                  ) : lecture.aiGenerationStatus === 'completed' ? (
+                    <button
+                      title="AI generation completed"
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-700 text-[10px] font-bold hover:bg-green-200 transition-colors"
+                    >
+                      ✓
+                    </button>
+                  ) : (
+                    <button
+                      title={`AI generation failed: ${lecture.aiGenerationError || 'Unknown error'}`}
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-700 text-[10px] font-bold hover:bg-red-200 transition-colors"
+                    >
+                      ✗
+                    </button>
+                  )}
                 </td>
 
                 {/* Actions */}
@@ -486,6 +530,7 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
             data={editData}
             onChange={handleInput(setEditData)}
             onYoutubeBlur={url => handleYoutubeBlur(url, setEditData)}
+            onGenerateSlug={slug => setEditData(prev => ({ ...prev, slug }))}
             metaLoading={metaLoading}
             contributors={contributors}
             editMode
@@ -528,6 +573,7 @@ interface LectureFormProps {
   data: FormState
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void
   onYoutubeBlur: (url: string) => void
+  onGenerateSlug: (slug: string) => void
   metaLoading: boolean
   contributors: User[]
   editMode?: boolean
@@ -538,7 +584,9 @@ interface LectureFormProps {
   onCancel: () => void
 }
 
-function LectureForm({ data, onChange, onYoutubeBlur, metaLoading, onSubmit, loading, submitLabel, onCancel }: LectureFormProps) {
+function LectureForm({ data, onChange, onYoutubeBlur, onGenerateSlug, metaLoading, onSubmit, loading, submitLabel, onCancel }: LectureFormProps) {
+  const [showTooltip, setShowTooltip] = useState(false)
+
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -577,7 +625,34 @@ function LectureForm({ data, onChange, onYoutubeBlur, metaLoading, onSubmit, loa
         {/* Slug */}
         <div>
           <label className={LABEL}>Slug *</label>
-          <input type="text" name="slug" value={data.slug} onChange={onChange} required placeholder="url-friendly-slug" className={INPUT} />
+          <div className="flex gap-2">
+            <input type="text" name="slug" value={data.slug} onChange={onChange} required placeholder="url-friendly-slug" className={INPUT} />
+            {!data.youtubeUrl.trim() && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onMouseEnter={() => setShowTooltip(true)}
+                  onMouseLeave={() => setShowTooltip(false)}
+                  onClick={() => {
+                    const parts = [data.title, data.speaker].filter(Boolean)
+                    const baseSlug = slugify(parts.join(' ') || 'lecture')
+                    const randomSuffix = Math.floor(1000 + Math.random() * 9000)
+                    const slug = `${baseSlug}-${randomSuffix}`
+                    onGenerateSlug(slug)
+                  }}
+                  className="px-3 py-2 text-xs font-medium bg-muted hover:bg-muted/80 border border-border rounded transition-colors whitespace-nowrap"
+                >
+                  Generate
+                </button>
+                {showTooltip && (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-slate-950 text-slate-100 text-xs px-2.5 py-1.5 rounded shadow-lg pointer-events-none">
+                    title + speaker + 4 random digits
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-3 border-transparent border-t-slate-950"></div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Lecture Date */}

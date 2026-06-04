@@ -53,7 +53,7 @@ export function MainNav({ session }: { session: Session | null }) {
             <div className="w-8 h-8 bg-saffron-600 rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-bold">D</span>
             </div>
-            <span className="hidden sm:inline">Devotional</span>
+            <span className="hidden sm:inline text-sm sm:text-base">Devotional Transcripts</span>
           </Link>
 
           {/* Desktop Menu */}
