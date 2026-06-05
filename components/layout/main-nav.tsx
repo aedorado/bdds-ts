@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X, Home, Settings, Users, Zap, Sun, Moon, LayoutDashboard, BookOpen, Search as SearchIcon, Globe } from 'lucide-react'
+import { Menu, X, Home, Settings, Users, Zap, Sun, Moon, LayoutDashboard, BookOpen, Search as SearchIcon, Globe, LogOut, User } from 'lucide-react'
 import { useTheme } from '@/components/theme-provider'
 import { UserMenu } from './user-menu'
 
@@ -135,28 +135,52 @@ export function MainNav({ session }: { session: Session | null }) {
                   </Link>
                 )
               })}
-              <div className="border-t border-border mt-3 pt-3 flex items-center justify-between">
-                <UserMenu session={session} />
-                <div className="flex items-center gap-1">
+              <div className="border-t border-border mt-3 pt-3 space-y-2">
+                {session?.userId && (
+                  <div className="px-3 py-2 flex items-center justify-between">
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <User className="w-4 h-4 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{session.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{session.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <button
+                        onClick={() => setFontSize(fontSize === 'normal' ? 'large' : 'normal')}
+                        className={`px-2 py-1 rounded-md text-xs font-semibold transition-colors select-none ${
+                          fontSize === 'large'
+                            ? 'bg-saffron-100 text-saffron-800 dark:bg-saffron-900 dark:text-saffron-100'
+                            : 'hover:bg-muted text-muted-foreground'
+                        }`}
+                        aria-label="Toggle font size"
+                      >
+                        Aa
+                      </button>
+                      <button
+                        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                        className="p-2 rounded-md hover:bg-muted transition-colors"
+                        aria-label="Toggle theme"
+                      >
+                        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {session?.userId && (
                   <button
-                    onClick={() => setFontSize(fontSize === 'normal' ? 'large' : 'normal')}
-                    className={`px-2 py-1 rounded-md text-xs font-semibold transition-colors select-none ${
-                      fontSize === 'large'
-                        ? 'bg-saffron-100 text-saffron-800 dark:bg-saffron-900 dark:text-saffron-100'
-                        : 'hover:bg-muted text-muted-foreground'
-                    }`}
-                    aria-label="Toggle font size"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/auth/logout', { method: 'POST' })
+                        if (res.ok) window.location.href = '/'
+                      } catch (e) { console.error(e) }
+                    }}
+                    className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                   >
-                    Aa
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
                   </button>
-                  <button
-                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                    className="p-2 rounded-md hover:bg-muted transition-colors"
-                    aria-label="Toggle theme"
-                  >
-                    {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                  </button>
-                </div>
+                )}
               </div>
             </div>
           </div>
