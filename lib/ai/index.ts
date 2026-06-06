@@ -26,7 +26,7 @@ STRICT RULES — follow without exception:
 /**
  * Generate a summary of a lecture transcript
  */
-export async function generateSummary(transcript: string, length: number = 200): Promise<string> {
+export async function generateSummary(transcript: string, length: number = 400): Promise<string> {
   const genAI = initializeGemini()
   const model = genAI.getGenerativeModel({
     model: 'gemini-3.1-flash-lite',
@@ -40,7 +40,7 @@ Do NOT describe the session's proceedings — ignore greetings, songs, announcem
 Only use what is explicitly stated in the transcript. Do not add outside knowledge.
 
 Transcript:
-${transcript.substring(0, 5000)}`
+${transcript}`
 
   const result = await model.generateContent(prompt)
   const response = result.response
@@ -57,14 +57,14 @@ export async function extractTeachings(transcript: string): Promise<string[]> {
     systemInstruction: SYSTEM_PROMPT,
   })
 
-  const prompt = `Extract 5-7 key teachings from the following lecture transcript.
+  const prompt = `Extract 10 or more key teachings from the following lecture transcript.
 Each teaching must be a direct point the speaker makes in the text — do not add, infer, or bring in outside knowledge.
 Use the speaker's own words or close paraphrases where possible.
 
 Return ONLY a JSON array of strings, no other text. Example: ["Teaching 1", "Teaching 2"]
 
 Transcript:
-${transcript.substring(0, 5000)}`
+${transcript}`
 
   const result = await model.generateContent(prompt)
   const text = result.response.text()
@@ -87,14 +87,14 @@ export async function generateTags(transcript: string): Promise<string[]> {
     systemInstruction: SYSTEM_PROMPT,
   })
 
-  const prompt = `Generate 5-10 tags for the following lecture transcript.
+  const prompt = `Generate 10 or more tags for the following lecture transcript.
 Tags must reflect only the topics and subjects the speaker explicitly discusses — do not add tags based on general knowledge of the subject area.
 Format: lowercase, hyphenated words.
 
 Return ONLY a JSON array of strings, no other text. Example: ["krishna-consciousness", "bhakti-yoga"]
 
 Transcript:
-${transcript.substring(0, 5000)}`
+${transcript}`
 
   const result = await model.generateContent(prompt)
   const text = result.response.text()
@@ -124,7 +124,7 @@ If fewer than 3 distinct themes are present, return only those that are clearly 
 Return ONLY a JSON array of strings, no other text. Example: ["Theme 1", "Theme 2"]
 
 Transcript:
-${transcript.substring(0, 5000)}`
+${transcript}`
 
   const result = await model.generateContent(prompt)
   const text = result.response.text()
