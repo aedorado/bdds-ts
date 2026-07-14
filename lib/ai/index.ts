@@ -136,3 +136,39 @@ ${transcript}`
   }
   return []
 }
+
+/**
+ * Extract anecdotes, stories, analogies, or historical accounts shared by the speaker in the transcript
+ */
+export async function extractAnecdotes(transcript: string): Promise<string[]> {
+  const genAI = initializeGemini()
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-3.1-flash-lite',
+    systemInstruction: SYSTEM_PROMPT,
+  })
+
+  const prompt = `Extract various anecdotes, stories, analogies, or historical accounts shared by the speaker in the following lecture transcript.
+Each anecdote must be a direct story or account mentioned in the text — do not add, infer, or bring in outside knowledge.
+Provide a concise, 1-2 sentence description of each anecdote.
+
+Return ONLY a JSON array of strings, no other text. Example: ["Story of A", "Incident of B"]
+
+Transcript:
+${transcript}`
+
+  const result = await model.generateContent(prompt)
+  const text = result.response.text()
+
+  // Parse JSON array from response
+  const jsonMatch = text.match(/\[[\s\S]*\]/)
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0])
+    } catch (e) {
+      console.error('Failed to parse anecdotes JSON:', e)
+      return []
+    }
+  }
+  return []
+}
+

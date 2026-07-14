@@ -122,6 +122,7 @@ export const aiSummaries = pgTable(
     keyTeachings: text('key_teachings').array(),
     keywords: text('keywords').array(),
     themes: text('themes').array(),
+    anecdotes: text('anecdotes').array(),
     generatedAt: timestamp('generated_at').notNull().defaultNow(),
   }
 )

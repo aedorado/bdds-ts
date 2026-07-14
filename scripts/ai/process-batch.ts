@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { aiSummaries, lectures } from '@/lib/db/schema'
-import { generateSummary, extractTeachings, extractThemes, generateTags } from '@/lib/ai'
-import { eq, isNull, isNotNull } from 'drizzle-orm'
+import { generateSummary, extractTeachings, extractThemes, generateTags, extractAnecdotes } from '@/lib/ai'
+import { eq, isNull } from 'drizzle-orm'
 
 /**
  * Batch AI processing pipeline — runs all 4 tasks in parallel per lecture.
@@ -27,23 +27,26 @@ async function processLecture(lecture: typeof lectures.$inferSelect) {
     return
   }
 
-  console.log(`  [${lecture.id}] "${lecture.title}" — 4 sequential AI calls (~4 min due to 1 RPM limit)`)
+  console.log(`  [${lecture.id}] "${lecture.title}" — 5 sequential AI calls (~5 min due to 1 RPM limit)`)
 
-  console.log(`    [1/4] summary...`)
+  console.log(`    [1/5] summary...`)
   const summary = await generateSummary(transcript, 200)
   await sleep(RPM_DELAY_MS)
 
-  console.log(`    [2/4] teachings...`)
+  console.log(`    [2/5] teachings...`)
   const keyTeachings = await extractTeachings(transcript)
   await sleep(RPM_DELAY_MS)
 
-  console.log(`    [3/4] themes...`)
+  console.log(`    [3/5] themes...`)
   const themes = await extractThemes(transcript)
   await sleep(RPM_DELAY_MS)
 
-  console.log(`    [4/4] tags...`)
+  console.log(`    [4/5] tags...`)
   const tags = await generateTags(transcript)
-  // no sleep after last call — next lecture's first call adds the delay
+  await sleep(RPM_DELAY_MS)
+
+  console.log(`    [5/5] anecdotes...`)
+  const anecdotes = await extractAnecdotes(transcript)
 
   // Upsert ai_summaries
   const existing = await db
@@ -55,10 +58,10 @@ async function processLecture(lecture: typeof lectures.$inferSelect) {
   if (existing.length) {
     await db
       .update(aiSummaries)
-      .set({ summary, keyTeachings, themes, generatedAt: new Date() })
+      .set({ summary, keyTeachings, themes, anecdotes, generatedAt: new Date() })
       .where(eq(aiSummaries.lectureId, lecture.id))
   } else {
-    await db.insert(aiSummaries).values({ lectureId: lecture.id, summary, keyTeachings, themes })
+    await db.insert(aiSummaries).values({ lectureId: lecture.id, summary, keyTeachings, themes, anecdotes })
   }
 
   // Save tags + mark as processed
@@ -67,7 +70,7 @@ async function processLecture(lecture: typeof lectures.$inferSelect) {
     .set({ tags, aiProcessedAt: new Date(), updatedAt: new Date() })
     .where(eq(lectures.id, lecture.id))
 
-  console.log(`  [${lecture.id}] done — summary, ${keyTeachings.length} teachings, ${themes.length} themes, ${tags.length} tags`)
+  console.log(`  [${lecture.id}] done — summary, ${keyTeachings.length} teachings, ${themes.length} themes, ${tags.length} tags, ${anecdotes.length} anecdotes`)
 }
 
 async function main() {

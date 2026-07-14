@@ -334,6 +334,29 @@ export default async function LecturePage({ params }: Props) {
                     </Card>
                   ) : null}
 
+                  {/* Anecdotes */}
+                  {lecture.ai?.anecdotes?.length ? (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <BookOpen className="w-4 h-4 text-emerald-500" />
+                          Anecdotes
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-3">
+                          {lecture.ai.anecdotes.map((anecdote, i) => (
+                            <li key={i} className="flex items-start gap-2.5 text-sm">
+                              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                              <span className="leading-relaxed">{anecdote}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+
+
                   {/* Tags */}
                   {lecture.tags?.length ? (
                     <Card>
