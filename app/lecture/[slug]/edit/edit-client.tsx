@@ -146,6 +146,14 @@ export function TranscriptEditClient({
   
   const { width: playerWidth, startDragging } = useResizer(450)
 
+  const [isDesktop, setIsDesktop] = useState(false)
+  useEffect(() => {
+    const checkSize = () => setIsDesktop(window.innerWidth >= 1024)
+    checkSize()
+    window.addEventListener('resize', checkSize)
+    return () => window.removeEventListener('resize', checkSize)
+  }, [])
+
   const status = STATUS_LABELS[lecture.status] ?? { label: lecture.status, color: 'bg-muted text-muted-foreground' }
 
   useEffect(() => {
@@ -312,64 +320,77 @@ export function TranscriptEditClient({
               )}
             </div>
           )}
-          {/* Media Player */}
+          {/* Media Player (Unified Side-by-side or Floating) */}
           {hasMedia && playerOpen && (
-            <>
-              {/* Desktop Side-by-side Player */}
-              <div
-                className="hidden lg:flex flex-col border-l border-border bg-slate-900 flex-shrink-0 relative"
-                style={{
-                  width: `${playerWidth}px`,
-                  minWidth: '320px',
-                  maxWidth: '80vw',
-                }}
-              >
-                {/* Drag Handle */}
-                <div 
+            <div
+              className={cn(
+                "bg-slate-900 flex-shrink-0 flex flex-col",
+                isDesktop
+                  ? "relative border-l border-border h-full"
+                  : "fixed z-40 shadow-2xl border border-white/10 rounded-t-xl bottom-0 left-0 right-0 sm:bottom-4 sm:right-4 sm:left-auto sm:w-[400px] sm:rounded-xl"
+              )}
+              style={isDesktop ? {
+                width: `${playerWidth}px`,
+                minWidth: '320px',
+                maxWidth: '80vw',
+              } : {
+                resize: 'horizontal',
+                overflow: 'hidden',
+                direction: 'rtl',
+                minWidth: '280px',
+                maxWidth: '90vw',
+              }}
+            >
+              {/* Drag Handle (Desktop only) */}
+              {isDesktop && (
+                <div
                   className="absolute left-0 top-0 bottom-0 w-2 -ml-1 cursor-col-resize z-50 hover:bg-blue-500/50 transition-colors"
                   onMouseDown={startDragging}
                 />
-                
-                <div className="flex flex-col h-full w-full">
-                  {/* Titlebar */}
-                  <div
-                    className="flex items-center justify-between px-3 py-2.5 bg-slate-800 cursor-pointer select-none shrink-0"
-                    onClick={() => setPlayerCollapsed(c => !c)}
-                  >
-                    <div className="flex items-center gap-2 text-white/80 text-xs font-medium min-w-0">
-                      <Video className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                      <span className="truncate">{lecture.title}</span>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0 ml-2">
-                      <button
-                        className="text-white/50 hover:text-white transition-colors p-1"
-                        onClick={e => { e.stopPropagation(); setPlayerCollapsed(c => !c) }}
-                        title={playerCollapsed ? 'Expand' : 'Collapse'}
-                      >
-                        {playerCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-                      <button
-                        className="text-white/50 hover:text-white transition-colors p-1"
-                        onClick={e => { e.stopPropagation(); setPlayerOpen(false) }}
-                        title="Close player"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+              )}
 
-                  {/* Player body */}
-                  {!playerCollapsed && (
-                    <div className="flex-1 min-h-0 bg-black flex flex-col justify-center">
-                      <MediaPlayer
-                        youtubeUrl={lecture.youtubeUrl}
-                        audioUrl={lecture.audioUrl}
-                      />
-                    </div>
+              <div style={!isDesktop ? { direction: 'ltr' } : undefined} className="flex flex-col h-full w-full">
+                {/* Titlebar */}
+                <div
+                  className={cn(
+                    "flex items-center justify-between px-3 py-2.5 bg-slate-800 cursor-pointer select-none shrink-0",
+                    !isDesktop ? "rounded-t-xl sm:rounded-t-xl" : ""
                   )}
+                  onClick={() => setPlayerCollapsed(c => !c)}
+                >
+                  <div className="flex items-center gap-2 text-white/80 text-xs font-medium min-w-0">
+                    <Video className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                    <span className="truncate">{lecture.title}</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                    <button
+                      className="text-white/50 hover:text-white transition-colors p-1"
+                      onClick={e => { e.stopPropagation(); setPlayerCollapsed(c => !c) }}
+                      title={playerCollapsed ? 'Expand' : 'Collapse'}
+                    >
+                      {playerCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                    <button
+                      className="text-white/50 hover:text-white transition-colors p-1"
+                      onClick={e => { e.stopPropagation(); setPlayerOpen(false) }}
+                      title="Close player"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
+
+                {/* Player body */}
+                {!playerCollapsed && (
+                  <div className={cn("bg-black", isDesktop ? "flex-1 min-h-0 flex flex-col justify-center" : "")}>
+                    <MediaPlayer
+                      youtubeUrl={lecture.youtubeUrl}
+                      audioUrl={lecture.audioUrl}
+                    />
+                  </div>
+                )}
               </div>
-            </>
+            </div>
           )}
         </div>
 
@@ -395,62 +416,6 @@ export function TranscriptEditClient({
                     <CommentsPanel lectureId={lecture.id} canEdit />
                   </div>
                 </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Mobile/Tablet Floating Player */}
-        {hasMedia && playerOpen && (
-          <div className={`
-            lg:hidden
-            fixed z-40 shadow-2xl border border-white/10 bg-slate-900 rounded-t-xl
-            bottom-0 left-0 right-0
-            sm:bottom-4 sm:right-4 sm:left-auto sm:w-[400px] sm:rounded-xl
-          `}
-          style={{ 
-            resize: 'horizontal', 
-            overflow: 'hidden', 
-            direction: 'rtl',
-            minWidth: '280px',
-            maxWidth: '90vw'
-          }}>
-            <div style={{ direction: 'ltr' }} className="flex flex-col h-full w-full">
-              {/* Titlebar */}
-              <div
-                className="flex items-center justify-between px-3 py-2.5 bg-slate-800 cursor-pointer select-none rounded-t-xl sm:rounded-t-xl"
-                onClick={() => setPlayerCollapsed(c => !c)}
-              >
-                <div className="flex items-center gap-2 text-white/80 text-xs font-medium min-w-0">
-                  <Video className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                  <span className="truncate">{lecture.title}</span>
-                </div>
-                <div className="flex items-center gap-1 shrink-0 ml-2">
-                  <button
-                    className="text-white/50 hover:text-white transition-colors p-1"
-                    onClick={e => { e.stopPropagation(); setPlayerCollapsed(c => !c) }}
-                    title={playerCollapsed ? 'Expand' : 'Collapse'}
-                  >
-                    {playerCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                  <button
-                    className="text-white/50 hover:text-white transition-colors p-1"
-                    onClick={e => { e.stopPropagation(); setPlayerOpen(false) }}
-                    title="Close player"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Player body */}
-              {!playerCollapsed && (
-                <div className="bg-black">
-                  <MediaPlayer
-                    youtubeUrl={lecture.youtubeUrl}
-                    audioUrl={lecture.audioUrl}
-                  />
-                </div>
               )}
             </div>
           </div>
