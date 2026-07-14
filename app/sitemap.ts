@@ -1,10 +1,11 @@
 import { MetadataRoute } from 'next'
-import { sql } from 'drizzle-orm'
+import { sql, eq, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { lectures } from '@/lib/db/schema'
+import { getBaseUrl } from '@/lib/utils'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://dts-liard.vercel.app'
+  const baseUrl = getBaseUrl()
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [
@@ -36,7 +37,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         updatedAt: lectures.updatedAt,
       })
       .from(lectures)
-      .where(sql`${lectures.status} = 'completed'`)
+      .where(or(eq(lectures.status, 'published'), eq(lectures.isPublic, true)))
 
     const lecturePages: MetadataRoute.Sitemap = allLectures.map((lecture) => ({
       url: `${baseUrl}/lecture/${lecture.slug}`,

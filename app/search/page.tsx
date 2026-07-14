@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { User, Search as SearchIcon, LogIn } from 'lucide-react'
-import posthog from 'posthog-js'
+import posthog from '@/lib/posthog'
 
 interface SearchResult {
   lectureId: number
@@ -135,23 +135,14 @@ export default function SearchPage() {
           </p>
         </div>
         {isLoggedIn === false && (
-          process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH === 'true' ? (
-            <Link href="/dev-login">
-              <Button variant="outline" className="gap-2 shrink-0">
-                <LogIn className="w-4 h-4" />
-                Sign In
-              </Button>
-            </Link>
-          ) : (
-            <Button
-              variant="outline"
-              className="gap-2 shrink-0"
-              onClick={() => signIn('google', { callbackUrl: '/search' })}
-            >
-              <LogIn className="w-4 h-4" />
-              Sign In
-            </Button>
-          )
+          <Button
+            variant="outline"
+            className="gap-2 shrink-0"
+            onClick={() => signIn('google', { callbackUrl: '/search' })}
+          >
+            <LogIn className="w-4 h-4" />
+            Sign In
+          </Button>
         )}
       </div>
 

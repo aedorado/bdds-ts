@@ -18,6 +18,7 @@ export const CreateLectureSchema = z.object({
   tags: z.array(z.string()).optional(),
   notes: z.string().optional().or(z.literal('')),
   rawTranscript: z.string().optional().or(z.literal('')),
+  isPublic: z.boolean().optional(),
 })
 
 export type CreateLectureInput = z.infer<typeof CreateLectureSchema>
@@ -120,6 +121,7 @@ export async function createLecture(
     rawTranscript: input.rawTranscript ? input.rawTranscript : undefined,
     createdBy: createdByUserId,
     status: 'not_started',
+    isPublic: input.isPublic ?? false,
   }
 
   // Add optional fields only if they have values
@@ -150,6 +152,7 @@ export async function updateLecture(
     completionPercentage?: number
     assignedCorrectorId?: number | null
     assignedProofreaderId?: number | null
+    isPublic?: boolean
   }
 ) {
   const result = await db
@@ -171,6 +174,7 @@ export async function updateLecture(
       ...(input.completionPercentage !== undefined && { completionPercentage: input.completionPercentage }),
       ...(input.assignedCorrectorId !== undefined && { assignedCorrectorId: input.assignedCorrectorId }),
       ...(input.assignedProofreaderId !== undefined && { assignedProofreaderId: input.assignedProofreaderId }),
+      ...(input.isPublic !== undefined && { isPublic: input.isPublic }),
       updatedAt: new Date(),
     })
     .where(eq(lectures.id, id))

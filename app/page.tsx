@@ -69,14 +69,6 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              {process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH === 'true' ? (
-                <Link href="/dev-login">
-                  <Button size="lg" className="bg-saffron-600 hover:bg-saffron-400 text-white gap-2 px-8 h-12 text-base rounded-xl shadow-lg shadow-saffron-900/40 hover:shadow-xl hover:shadow-saffron-900/60 transition-all duration-200 hover:scale-105 cursor-pointer">
-                    Dev Login
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
-              ) : (
                 <Button
                   size="lg"
                   className="bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 shadow-sm gap-2.5 px-8 h-12 text-base rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer"
@@ -90,7 +82,6 @@ export default function Home() {
                   </svg>
                   Sign in with Google
                 </Button>
-              )}
               <Link href="/search">
                 <Button size="lg" variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white hover:border-slate-500 gap-2 px-8 h-12 text-base rounded-xl transition-all duration-200 hover:scale-105 cursor-pointer">
                   <Search className="w-4 h-4" />
@@ -204,20 +195,12 @@ export default function Home() {
               <p className="text-slate-400 mb-6 max-w-md mx-auto">
                 Join our community of devotional scholars and start earning seva points today.
               </p>
-              {process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH === 'true' ? (
-                <Link href="/dev-login">
-                  <Button className="bg-saffron-600 hover:bg-saffron-400 text-white gap-2 px-8 rounded-xl transition-all duration-200 hover:scale-105 cursor-pointer shadow-lg shadow-saffron-900/40 hover:shadow-xl hover:shadow-saffron-900/60">
-                    Get Started <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
-              ) : (
                 <Button
                   className="bg-saffron-600 hover:bg-saffron-400 text-white gap-2 px-8 rounded-xl transition-all duration-200 hover:scale-105 cursor-pointer shadow-lg shadow-saffron-900/40 hover:shadow-xl hover:shadow-saffron-900/60"
                   onClick={() => signIn('google', { callbackUrl: '/' })}
                 >
                   Sign in with Google <ArrowRight className="w-4 h-4" />
                 </Button>
-              )}
             </div>
           </div>
         </div>

@@ -64,6 +64,7 @@ export const lectures = pgTable(
     aiGenerationStartedAt: timestamp('ai_generation_started_at'),
     aiGenerationCompletedAt: timestamp('ai_generation_completed_at'),
     aiGenerationError: text('ai_generation_error'),
+    isPublic: boolean('is_public').notNull().default(false),
   },
   (table) => [
     index('status_idx').on(table.status),

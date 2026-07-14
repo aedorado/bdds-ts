@@ -23,3 +23,21 @@ export function debounce<T extends (...args: Parameters<T>) => ReturnType<T>>(
   }
 }
 
+/**
+ * Get the base site URL dynamically based on environment variables
+ */
+export function getBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL
+  }
+  // Vercel auto-populates VERCEL_PROJECT_PRODUCTION_URL in production deployments
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`
+  }
+  return "https://dts-liard.vercel.app"
+}
+
+

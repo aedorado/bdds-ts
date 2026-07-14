@@ -15,12 +15,14 @@ type FormState = {
   slug: string; title: string; speaker: string; category: string
   youtubeUrl: string; audioUrl: string; place: string; lectureDate: string
   notes: string; rawTranscript: string; tags: string; durationSeconds: string
+  isPublic: boolean
 }
 
 const EMPTY: FormState = {
   slug: '', title: '', speaker: '', category: '',
   youtubeUrl: '', audioUrl: '', place: '', lectureDate: '',
   notes: '', rawTranscript: '', tags: '', durationSeconds: '',
+  isPublic: false,
 }
 
 function slugify(text: string) {
@@ -61,8 +63,8 @@ export function NewLectureClient() {
         const data = await res.json()
         setFilters(data)
       } catch (err) {
-        console.error('Error fetching filters:', err)
-        // Silently fail - form still works without suggestions
+         console.error('Error fetching filters:', err)
+         // Silently fail - form still works without suggestions
       } finally {
         setFiltersLoading(false)
       }
@@ -72,8 +74,9 @@ export function NewLectureClient() {
   }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: value }))
+    const { name, value, type } = e.target
+    const checked = (e.target as HTMLInputElement).checked
+    setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
   }
 
   const handleYoutubeBlur = async (url: string) => {
@@ -109,6 +112,7 @@ export function NewLectureClient() {
       rawTranscript: form.rawTranscript || undefined,
       tags: form.tags ? form.tags.split(',').map(t => t.trim()) : undefined,
       durationSeconds: form.durationSeconds ? parseInt(form.durationSeconds) : undefined,
+      isPublic: form.isPublic,
     })
     setLoading(false)
     if (result.success) {
@@ -273,6 +277,20 @@ export function NewLectureClient() {
       <div>
         <label className={LABEL}>Notes</label>
         <textarea name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Internal notes" className={INPUT} />
+      </div>
+
+      <div className="flex items-center gap-2 py-2">
+        <input
+          type="checkbox"
+          id="isPublic"
+          name="isPublic"
+          checked={form.isPublic}
+          onChange={handleChange}
+          className="w-4 h-4 accent-amber-600 rounded border-gray-300 text-saffron-600 focus:ring-saffron-500"
+        />
+        <label htmlFor="isPublic" className="text-sm font-medium text-foreground cursor-pointer">
+          Publicly Visible <span className="text-xs text-muted-foreground font-normal">(bypasses status pipeline)</span>
+        </label>
       </div>
 
       <div>

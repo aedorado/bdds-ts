@@ -77,7 +77,7 @@ export default async function CommunityPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Login to track your seva points and see your rank
               </p>
-              <Link href="/dev-login" className="w-full">
+              <Link href="/login" className="w-full">
                 <Button variant="default" className="w-full">
                   Login
                 </Button>

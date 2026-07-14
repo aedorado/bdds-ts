@@ -16,7 +16,7 @@ import { MediaPlayer } from '@/components/media/player'
 import { useEditorActivity } from '@/lib/hooks/useEditorActivity'
 import { useActivityTracker } from '@/hooks/useActivityTracker'
 import { usePointsAward } from '@/hooks/usePointsAward'
-import posthog from 'posthog-js'
+import posthog from '@/lib/posthog'
 
 interface LectureData {
   id: number

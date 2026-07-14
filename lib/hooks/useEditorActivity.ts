@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useCallback } from 'react'
-import posthog from 'posthog-js'
+import posthog from '@/lib/posthog'
 
 interface ActivityMetrics {
   totalSeconds: number

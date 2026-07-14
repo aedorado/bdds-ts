@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Combobox } from '@/components/ui/combobox'
 import { Trash2, Plus, Loader2, Pencil, X, ChevronUp, ChevronDown, ChevronsUpDown, ExternalLink, Search } from 'lucide-react'
 import {
   updateLectureAction,
@@ -73,6 +74,7 @@ interface Lecture {
   aiGenerationStartedAt?: Date | string | null
   aiGenerationCompletedAt?: Date | string | null
   aiGenerationError?: string | null
+  isPublic: boolean
 }
 
 interface User {
@@ -80,6 +82,12 @@ interface User {
   name: string
   email: string
   role: string
+}
+
+interface Filters {
+  speakers: string[]
+  categories: string[]
+  places: string[]
 }
 
 interface AdminLecturesClientProps {
@@ -94,12 +102,14 @@ type FormState = {
   slug: string; title: string; speaker: string; category: string
   youtubeUrl: string; audioUrl: string; place: string; lectureDate: string
   notes: string; rawTranscript: string; tags: string; durationSeconds: string
+  isPublic: boolean
 }
 
 const EMPTY_FORM: FormState = {
   slug: '', title: '', speaker: '', category: '',
   youtubeUrl: '', audioUrl: '', place: '', lectureDate: '',
   notes: '', rawTranscript: '', tags: '', durationSeconds: '',
+  isPublic: false,
 }
 
 // ─── main component ──────────────────────────────────────────────────────────
@@ -113,6 +123,36 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
   const [editData, setEditData] = useState<FormState>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [metaLoading, setMetaLoading] = useState(false)
+
+  const [filters, setFilters] = useState<Filters>({
+    speakers: [],
+    categories: [],
+    places: [],
+  })
+  const [filtersLoading, setFiltersLoading] = useState(true)
+
+  // Fetch filters on mount with timeout
+  React.useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
+
+        const res = await fetch('/api/lectures/filters', { signal: controller.signal })
+        clearTimeout(timeoutId)
+
+        if (!res.ok) throw new Error('Failed to fetch filters')
+        const data = await res.json()
+        setFilters(data)
+      } catch (err) {
+         console.error('Error fetching filters:', err)
+      } finally {
+        setFiltersLoading(false)
+      }
+    }
+
+    fetchFilters()
+  }, [])
 
   // table controls
   const [search, setSearch] = useState('')
@@ -167,8 +207,9 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
 
   const handleInput = (set: React.Dispatch<React.SetStateAction<FormState>>) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      const { name, value } = e.target
-      set(prev => ({ ...prev, [name]: value }))
+      const { name, value, type } = e.target
+      const checked = (e.target as HTMLInputElement).checked
+      set(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
     }
 
   const handleYoutubeBlur = async (url: string, set: React.Dispatch<React.SetStateAction<FormState>>) => {
@@ -200,9 +241,11 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
     rawTranscript: fd.rawTranscript || undefined,
     tags: fd.tags ? fd.tags.split(',').map(t => t.trim()) : undefined,
     durationSeconds: fd.durationSeconds ? parseInt(fd.durationSeconds) : undefined,
+    isPublic: fd.isPublic,
   })
 
   const openEdit = (l: Lecture) => {
+    setError(null)
     setEditLecture(l)
     setEditData({
       slug: l.slug,
@@ -217,6 +260,7 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
       rawTranscript: l.rawTranscript ?? '',
       tags: l.tags ? l.tags.join(', ') : '',
       durationSeconds: l.durationSeconds ? String(l.durationSeconds) : '',
+      isPublic: l.isPublic ?? false,
     })
   }
 
@@ -226,11 +270,15 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
     setSaving(true); setError(null)
     try {
       const result = await updateLectureAction(editLecture.id, buildSubmitData(editData))
+      console.log('Update Lecture Result:', result)
       if (result.success && result.lecture) {
         setLectures(prev => prev.map(l => l.id === editLecture.id ? { ...l, ...result.lecture as unknown as Lecture } : l))
         setEditLecture(null)
       } else setError(result.error || 'Failed to update lecture')
-    } catch (err) { setError(err instanceof Error ? err.message : 'An error occurred') }
+    } catch (err) {
+      console.error('Update lecture error:', err)
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    }
     finally { setSaving(false) }
   }
 
@@ -354,6 +402,7 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
                   Status <SortIcon col="status" />
                 </button>
               </th>
+              <th className="px-4 py-3 text-center font-medium w-24">Public</th>
               <th className="px-4 py-3 text-left font-medium w-40">Corrector</th>
               <th className="px-4 py-3 text-left font-medium w-40">Proofreader</th>
               <th className="px-4 py-3 text-center font-medium w-12">AI</th>
@@ -363,7 +412,7 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
           <tbody>
             {displayed.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
                   {search || filterStatus ? 'No lectures match your filters.' : 'No lectures yet. Add the first one!'}
                 </td>
               </tr>
@@ -371,9 +420,14 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
               <tr key={lecture.id} className={`border-b border-border last:border-0 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? 'bg-muted/5' : ''}`}>
                 {/* Title */}
                 <td className="px-4 py-3">
-                  <Link href={`/lecture/${lecture.slug}`} className="font-medium leading-snug hover:underline line-clamp-2">
-                    {lecture.title}
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link href={`/lecture/${lecture.slug}`} className="font-medium leading-snug hover:underline line-clamp-2">
+                      {lecture.title}
+                    </Link>
+                    {lecture.isPublic && (
+                      <Badge variant="success" className="text-[10px] px-1.5 py-0.5 font-bold uppercase tracking-wide">Public</Badge>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {lecture.speaker}{lecture.category ? ` · ${lecture.category}` : ''}
                   </div>
@@ -390,6 +444,26 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
                       <option key={s} value={s}>{STATUS_META[s].label}</option>
                     ))}
                   </select>
+                </td>
+
+                {/* Public Toggle */}
+                <td className="px-4 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={lecture.isPublic}
+                    onChange={async (e) => {
+                      const newIsPublic = e.target.checked
+                      // Optimistic state update
+                      setLectures(prev => prev.map(l => l.id === lecture.id ? { ...l, isPublic: newIsPublic } : l))
+                      const result = await updateLectureAction(lecture.id, { isPublic: newIsPublic })
+                      if (!result.success) {
+                        // Rollback on failure
+                        setLectures(prev => prev.map(l => l.id === lecture.id ? { ...l, isPublic: !newIsPublic } : l))
+                        setError(result.error || 'Failed to update visibility')
+                      }
+                    }}
+                    className="w-4.5 h-4.5 accent-amber-600 rounded border-gray-300 text-saffron-600 focus:ring-saffron-500 cursor-pointer transition-all hover:scale-105"
+                  />
                 </td>
 
                 {/* Corrector */}
@@ -464,7 +538,7 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
                 {/* Actions */}
                 <td className="px-3 py-3">
                   <div className="flex items-center justify-end gap-1">
-                    <Link href={`/lecture/${lecture.slug}`} title="Open lecture" className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent transition-colors">
+                    <Link href={`/lecture/${lecture.slug}`} title="Open lecture" className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">
                       <ExternalLink className="w-3.5 h-3.5" />
                     </Link>
                     <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(lecture)}>
@@ -525,7 +599,13 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
 
       {/* ── Edit modal ───────────────────────────────────────────────────────── */}
       {editLecture && (
-        <Modal title={`Edit: ${editLecture.title}`} onClose={() => setEditLecture(null)} wide>
+        <Modal title={`Edit: ${editLecture.title}`} onClose={() => { setEditLecture(null); setError(null); }} wide>
+          {error && (
+            <div className="mb-4 flex items-center justify-between bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded-lg text-sm">
+              <span>{error}</span>
+              <button onClick={() => setError(null)}><X className="w-4 h-4" /></button>
+            </div>
+          )}
           <LectureForm
             data={editData}
             onChange={handleInput(setEditData)}
@@ -538,7 +618,12 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
             onSubmit={handleSaveEdit}
             loading={saving}
             submitLabel="Save Changes"
-            onCancel={() => setEditLecture(null)}
+            onCancel={() => { setEditLecture(null); setError(null); }}
+            filters={filters}
+            filtersLoading={filtersLoading}
+            onSpeakerChange={val => setEditData(prev => ({ ...prev, speaker: val }))}
+            onCategoryChange={val => setEditData(prev => ({ ...prev, category: val }))}
+            onPlaceChange={val => setEditData(prev => ({ ...prev, place: val }))}
           />
         </Modal>
       )}
@@ -582,9 +667,29 @@ interface LectureFormProps {
   loading: boolean
   submitLabel: string
   onCancel: () => void
+  filters: Filters
+  filtersLoading: boolean
+  onSpeakerChange: (value: string) => void
+  onCategoryChange: (value: string) => void
+  onPlaceChange: (value: string) => void
 }
 
-function LectureForm({ data, onChange, onYoutubeBlur, onGenerateSlug, metaLoading, onSubmit, loading, submitLabel, onCancel }: LectureFormProps) {
+function LectureForm({
+  data,
+  onChange,
+  onYoutubeBlur,
+  onGenerateSlug,
+  metaLoading,
+  onSubmit,
+  loading,
+  submitLabel,
+  onCancel,
+  filters,
+  filtersLoading,
+  onSpeakerChange,
+  onCategoryChange,
+  onPlaceChange,
+}: LectureFormProps) {
   const [showTooltip, setShowTooltip] = useState(false)
 
   return (
@@ -613,13 +718,33 @@ function LectureForm({ data, onChange, onYoutubeBlur, onGenerateSlug, metaLoadin
         {/* Speaker */}
         <div>
           <label className={LABEL}>Speaker *</label>
-          <input type="text" name="speaker" value={data.speaker} onChange={onChange} required placeholder="Speaker name" className={INPUT} />
+          {!filtersLoading ? (
+            <Combobox
+              options={filters.speakers}
+              value={data.speaker}
+              onValueChange={onSpeakerChange}
+              placeholder="Select or type speaker name..."
+              searchPlaceholder="Search speakers..."
+            />
+          ) : (
+            <input type="text" name="speaker" value={data.speaker} onChange={onChange} required placeholder="Speaker name" className={INPUT} />
+          )}
         </div>
 
         {/* Category */}
         <div>
           <label className={LABEL}>Category</label>
-          <input type="text" name="category" value={data.category} onChange={onChange} placeholder="e.g. Bhagavad Gita" className={INPUT} />
+          {!filtersLoading ? (
+            <Combobox
+              options={filters.categories}
+              value={data.category}
+              onValueChange={onCategoryChange}
+              placeholder="Select or type category..."
+              searchPlaceholder="Search categories..."
+            />
+          ) : (
+            <input type="text" name="category" value={data.category} onChange={onChange} placeholder="e.g. Bhagavad Gita" className={INPUT} />
+          )}
         </div>
 
         {/* Slug */}
@@ -664,7 +789,17 @@ function LectureForm({ data, onChange, onYoutubeBlur, onGenerateSlug, metaLoadin
         {/* Place */}
         <div>
           <label className={LABEL}>Place</label>
-          <input type="text" name="place" value={data.place} onChange={onChange} placeholder="City, Country" className={INPUT} />
+          {!filtersLoading ? (
+            <Combobox
+              options={filters.places}
+              value={data.place}
+              onValueChange={onPlaceChange}
+              placeholder="Select or type place..."
+              searchPlaceholder="Search places..."
+            />
+          ) : (
+            <input type="text" name="place" value={data.place} onChange={onChange} placeholder="City, Country" className={INPUT} />
+          )}
         </div>
 
         {/* Audio URL */}
@@ -691,6 +826,20 @@ function LectureForm({ data, onChange, onYoutubeBlur, onGenerateSlug, metaLoadin
         <label className={LABEL}>Notes</label>
         <textarea name="notes" value={data.notes} onChange={onChange} rows={2}
           placeholder="Internal notes" className={INPUT} />
+      </div>
+
+      <div className="flex items-center gap-2 py-2">
+        <input
+          type="checkbox"
+          id="isPublic"
+          name="isPublic"
+          checked={data.isPublic}
+          onChange={onChange}
+          className="w-4 h-4 accent-amber-600 rounded border-gray-300 text-saffron-600 focus:ring-saffron-500"
+        />
+        <label htmlFor="isPublic" className="text-sm font-medium text-foreground cursor-pointer">
+          Publicly Visible <span className="text-xs text-muted-foreground font-normal">(bypasses status pipeline)</span>
+        </label>
       </div>
 
       {/* Raw Transcript */}

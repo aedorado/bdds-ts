@@ -108,8 +108,8 @@ export function Combobox({
                   type="button"
                   onClick={() => handleSelect(option)}
                   className={cn(
-                    'w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2',
-                    value === option && 'bg-accent'
+                    'w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2',
+                    value === option && 'bg-accent text-accent-foreground'
                   )}
                 >
                   <Check
@@ -133,7 +133,7 @@ export function Combobox({
                 <button
                   type="button"
                   onClick={() => handleSelect(search.trim())}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors border-t border-border font-medium"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors border-t border-border font-medium"
                 >
                   ➕ Add "{search.trim()}"
                 </button>

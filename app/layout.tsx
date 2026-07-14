@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Lora } from "next/font/google";
 import "./globals.css";
-import { DevAuthBadge, MainNav, Footer } from "@/components/layout";
+import { MainNav, Footer } from "@/components/layout";
 import { AuthProvider } from "@/components/auth-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AppInitializer } from "@/components/app-initializer";
 import { getSession } from "@/lib/auth/session";
+import { getBaseUrl } from "@/lib/utils";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,58 +25,63 @@ const lora = Lora({
   weight: ["400", "500", "600", "700"],
 });
 
-export const metadata: Metadata = {
-  title: "Devotional Transcripts | Lecture Transcription & Community Collaboration",
-  description: "A production-grade platform for transcribing, editing, and analyzing devotional lectures with community collaboration, full-text search, and AI-powered insights. Discover spiritual wisdom through carefully transcribed lectures.",
-  keywords: [
-    "devotional lectures",
-    "transcription platform",
-    "spiritual teachings",
-    "Krishna consciousness",
-    "lecture repository",
-    "community collaboration",
-    "transcript editing",
-    "full-text search",
-  ],
-  icons: {
-    icon: "/favicon.svg",
-    apple: "/favicon.svg",
-  },
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    url: "https://dts-liard.vercel.app",
-    title: "Devotional Transcripts | Lecture Transcription Platform",
-    description:
-      "Community-powered platform for transcribing and sharing devotional lectures with AI-powered analysis and collaborative editing.",
-    siteName: "Devotional Transcripts",
-    images: [
-      {
-        url: "https://dts-liard.vercel.app/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Devotional Transcripts Platform",
-      },
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = getBaseUrl()
+
+  return {
+    title: "Devotional Transcripts | Lecture Transcription & Community Collaboration",
+    description: "A production-grade platform for transcribing, editing, and analyzing devotional lectures with community collaboration, full-text search, and AI-powered insights. Discover spiritual wisdom through carefully transcribed lectures.",
+    keywords: [
+      "devotional lectures",
+      "transcription platform",
+      "spiritual teachings",
+      "Krishna consciousness",
+      "lecture repository",
+      "community collaboration",
+      "transcript editing",
+      "full-text search",
     ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Devotional Transcripts | Lecture Transcription Platform",
-    description:
-      "Community-powered platform for transcribing and sharing devotional lectures with AI-powered analysis.",
-    images: ["https://dts-liard.vercel.app/og-image.png"],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    "max-image-preview": "large",
-    "max-snippet": -1,
-    "max-video-preview": -1,
-  },
-  alternates: {
-    canonical: "https://dts-liard.vercel.app",
-  },
-};
+    icons: {
+      icon: "/favicon.svg",
+      apple: "/favicon.svg",
+    },
+    openGraph: {
+      type: "website",
+      locale: "en_US",
+      url: baseUrl,
+      title: "Devotional Transcripts | Lecture Transcription Platform",
+      description:
+        "Community-powered platform for transcribing and sharing devotional lectures with AI-powered analysis and collaborative editing.",
+      siteName: "Devotional Transcripts",
+      images: [
+        {
+          url: `${baseUrl}/og-image.png`,
+          width: 1200,
+          height: 630,
+          alt: "Devotional Transcripts Platform",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Devotional Transcripts | Lecture Transcription Platform",
+      description:
+        "Community-powered platform for transcribing and sharing devotional lectures with AI-powered analysis.",
+      images: [`${baseUrl}/og-image.png`],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+    alternates: {
+      canonical: baseUrl,
+    },
+  };
+}
+
 
 export default async function RootLayout({
   children,
@@ -124,7 +130,6 @@ export default async function RootLayout({
               {children}
             </main>
             <Footer />
-            {process.env.ENABLE_DEV_AUTH === "true" && <DevAuthBadge />}
           </AppInitializer>
         </AuthProvider>
         </ThemeProvider>

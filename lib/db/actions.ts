@@ -56,7 +56,7 @@ export async function createLectureAction(formData: z.infer<typeof CreateLecture
       },
     })
     await posthog.shutdown()
-    return { success: true, lecture }
+    return { success: true, lecture: JSON.parse(JSON.stringify(lecture)) }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to create lecture' }
   }
@@ -87,7 +87,7 @@ export async function updateLectureAction(
 
   try {
     const lecture = await updateLecture(id, data)
-    return { success: true, lecture }
+    return { success: true, lecture: JSON.parse(JSON.stringify(lecture)) }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to update lecture' }
   }
@@ -209,7 +209,7 @@ export async function assignCorrectorAction(lectureId: number, correctorId: numb
       })
       await posthog.shutdown()
     }
-    return { success: true, lecture }
+    return { success: true, lecture: JSON.parse(JSON.stringify(lecture)) }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to assign corrector' }
   }
@@ -231,7 +231,7 @@ export async function assignProofreaderAction(lectureId: number, proofreaderId: 
 
   try {
     const lecture = await updateLecture(lectureId, { assignedProofreaderId: proofreaderId })
-    return { success: true, lecture }
+    return { success: true, lecture: JSON.parse(JSON.stringify(lecture)) }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to assign proofreader' }
   }
@@ -359,7 +359,7 @@ export async function markCorrectedAction(lectureId: number) {
     },
   })
   await posthog.shutdown()
-  return { success: true, lecture: updated }
+  return { success: true, lecture: JSON.parse(JSON.stringify(updated)) }
 }
 
 /**
@@ -400,7 +400,7 @@ export async function markProofreadAction(lectureId: number) {
     },
   })
   await posthog.shutdown()
-  return { success: true, lecture: updated }
+  return { success: true, lecture: JSON.parse(JSON.stringify(updated)) }
 }
 
 /**
@@ -437,5 +437,5 @@ export async function publishLectureAction(lectureId: number) {
     },
   })
   await posthog.shutdown()
-  return { success: true, lecture: updated }
+  return { success: true, lecture: JSON.parse(JSON.stringify(updated)) }
 }

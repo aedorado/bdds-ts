@@ -36,9 +36,9 @@ export async function searchLectures(params: SearchParams) {
 
   const conditions: (SQL | undefined)[] = []
 
-  // Restrict to published lectures unless admin bypasses
+  // Restrict to published or explicitly public lectures unless admin bypasses
   if (parsed.publishedOnly !== 'false') {
-    conditions.push(eq(lectures.status, 'published'))
+    conditions.push(or(eq(lectures.status, 'published'), eq(lectures.isPublic, true)))
   }
 
   // Full-text search on title, speaker, or transcript content

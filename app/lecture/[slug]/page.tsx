@@ -8,7 +8,7 @@ import { ArrowLeft, Calendar, Clock, MapPin, User, Edit2, BookOpen, Lightbulb, T
 import { getSession } from '@/lib/auth'
 import { getLectureWithAiBySlug, getLectureById } from '@/lib/db/queries'
 import { hasRole } from '@/lib/auth/middleware'
-import { cn } from '@/lib/utils'
+import { cn, getBaseUrl } from '@/lib/utils'
 import { StatusActionButton } from './status-action-button'
 import { BackButton } from './back-button'
 import { MediaPlayerWrapper } from '@/components/media/media-player-wrapper'
@@ -23,6 +23,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const lecture = await getLectureWithAiBySlug(slug)
   if (!lecture) return { title: 'Lecture Not Found' }
 
+  const isPublicOrPublished = lecture.status === 'published' || lecture.isPublic
+
+  if (!isPublicOrPublished) {
+    return {
+      title: 'Private Lecture',
+      robots: { index: false, follow: false },
+    }
+  }
+
+  const baseUrl = getBaseUrl()
   const description = lecture.ai?.summary
     ?? lecture.notes
     ?? `Devotional lecture by ${lecture.speaker}${lecture.place ? ` at ${lecture.place}` : ''}.`
@@ -31,10 +41,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: lecture.title,
     description: description.slice(0, 160),
     keywords: lecture.tags ?? undefined,
+    alternates: {
+      canonical: `${baseUrl}/lecture/${slug}`,
+    },
     openGraph: {
       title: lecture.title,
       description: description.slice(0, 160),
       type: 'article',
+      url: `${baseUrl}/lecture/${slug}`,
       ...(lecture.thumbnailUrl && { images: [{ url: lecture.thumbnailUrl }] }),
       ...(lecture.lectureDate && { publishedTime: lecture.lectureDate.toISOString() }),
     },
@@ -89,6 +103,21 @@ export default async function LecturePage({ params }: Props) {
   if (!lecture) notFound()
 
   const session = await getSession()
+
+  // Access check
+  const isPublicOrPublished = lecture.status === 'published' || lecture.isPublic
+  const hasAccess = isPublicOrPublished || (
+    session && (
+      session.role === 'admin' ||
+      lecture.assignedCorrectorId === session.userId ||
+      lecture.assignedProofreaderId === session.userId
+    )
+  )
+
+  if (!hasAccess) {
+    notFound()
+  }
+
 
   // Edit Transcript is only shown when it's the user's active turn in the pipeline
   const canEdit = session && (
