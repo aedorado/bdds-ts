@@ -147,13 +147,15 @@ export async function extractAnecdotes(transcript: string): Promise<string[]> {
     systemInstruction: SYSTEM_PROMPT,
   })
 
-  const prompt = `Extract various anecdotes, stories, analogies, or historical accounts shared by the speaker in the following lecture transcript.
-Follow these rules:
-- Each anecdote must be a direct story, account, or analogy mentioned in the text — do not add, infer, or bring in outside knowledge.
-- Format each description with a short, bold title followed by a colon and a 2-4 sentence narrative (e.g. "**The Burunda Bird**: A bird in the Himalayas that imitates everything it hears but doesn't implement it, showing the danger of theoretical knowledge without practice.").
-- DO NOT start the descriptions with repetitive phrases like "The speaker tells...", "The speaker recounts...", "The speaker mentions...", or "This is a story of...". Narrate the story/analogy directly.
+  const prompt = `Extract only actual anecdotes, fables, parables, side-stories, historical incidents, personal accounts, or analogies shared by the speaker in the following transcript.
+Follow these strict classification rules:
+- ONLY extract narrative stories, fables, historical incidents (like the Himalayan Burunda bird, Padma Pada walking on water, the former thief, or King Kulasekhara marching into the ocean), or illustrative analogies.
+- STRICTLY EXCLUDE the main scriptural topic/storyline of the lecture itself (e.g., if the lecture is about Brahma's prayers, do not extract "Brahma prayed to Krishna" or "Brahma kidnapped the cowherd boys" as anecdotes; those are the primary subject matter, not side stories or analogies).
+- STRICTLY EXCLUDE general philosophical explanations, theoretical concepts, or doctrinal summaries (e.g., "suffering is purification" or "repentance is important").
+- Format each description with a short, bold title followed by a colon and a 2-4 sentence narrative detailing the story/analogy itself, rather than summarizing what the speaker said.
+- DO NOT start the descriptions with repetitive phrases like "The speaker tells...", "The speaker recounts...", "The speaker mentions...", or "This is a story of...".
 
-Return ONLY a JSON array of strings, no other text.
+Return ONLY a JSON array of strings, no other text. If no valid anecdotes or analogies are present, return an empty array [].
 
 Transcript:
 ${transcript}`
@@ -289,13 +291,13 @@ export async function extractQuotes(transcript: string): Promise<string[]> {
     systemInstruction: SYSTEM_PROMPT,
   })
 
-  const prompt = `Extract 3-5 of the most impactful, profound, and memorable quotes spoken by the speaker in the following transcript.
-Follow these strict rules:
-- Quotes can be of any length — ranging from a single punchy sentence to a full, rich paragraph containing multiple sentences of profound spiritual realization or guidance.
+  const prompt = `Extract 3-5 of the most impactful, profound, and memorable quotes spoken verbatim by the speaker in the following transcript.
+Follow these strict selection rules:
 - Focus on deeply inspirational realizations, strong spiritual warnings, or beautiful comparisons (e.g. "The greatest psychic weapon anyone can have in this material world is loving people.", "If you share the Lord's load, He will take care of your load.").
-- STRICTLY AVOID simple factual sentences, dry philosophical axioms, or generic statements (such as "If you don't surrender, you are not a devotee" or "Bhakti is superior to all other practices").
-- The quotes must represent the highest points of emotional or intellectual realization in the lecture.
-- Only extract direct statements from the text — do not fabricate or alter the speaker's words significantly.
+- Quotes can be of any length — ranging from a single punchy sentence to a full, rich paragraph containing multiple sentences of profound spiritual realization or guidance.
+- STRICTLY AVOID simple factual sentences, dry philosophical axioms, generic phrases, or common clichés (such as "Bhakti is superior", "Repentance is a powerful fire", "We should print this in our heart", "If you don't surrender, you are not a devotee", "Everything should be done from the heart").
+- Select quotes that are unique, poetic, or carry deep emotional and intellectual weight, sounding like a quote one would write down in a journal or share.
+- Only extract direct, verbatim statements from the text — do not paraphrase or construct new sentences.
 
 Return ONLY a JSON array of strings, no other text.
 
