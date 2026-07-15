@@ -148,10 +148,12 @@ export async function extractAnecdotes(transcript: string): Promise<string[]> {
   })
 
   const prompt = `Extract various anecdotes, stories, analogies, or historical accounts shared by the speaker in the following lecture transcript.
-Each anecdote must be a direct story or account mentioned in the text — do not add, infer, or bring in outside knowledge.
-Provide a concise, 1-2 sentence description of each anecdote.
+Follow these rules:
+- Each anecdote must be a direct story, account, or analogy mentioned in the text — do not add, infer, or bring in outside knowledge.
+- Format each description with a short, bold title followed by a colon and a 2-4 sentence narrative (e.g. "**The Burunda Bird**: A bird in the Himalayas that imitates everything it hears but doesn't implement it, showing the danger of theoretical knowledge without practice.").
+- DO NOT start the descriptions with repetitive phrases like "The speaker tells...", "The speaker recounts...", "The speaker mentions...", or "This is a story of...". Narrate the story/analogy directly.
 
-Return ONLY a JSON array of strings, no other text. Example: ["Story of A", "Incident of B"]
+Return ONLY a JSON array of strings, no other text.
 
 Transcript:
 ${transcript}`
@@ -287,10 +289,15 @@ export async function extractQuotes(transcript: string): Promise<string[]> {
     systemInstruction: SYSTEM_PROMPT,
   })
 
-  const prompt = `Extract 3-5 of the most impactful, memorable, or key quotes directly spoken by the speaker in the following transcript.
-Only use direct statements from the text — do not paraphrase or modify the quotes significantly.
+  const prompt = `Extract 3-5 of the most impactful, profound, and memorable quotes spoken by the speaker in the following transcript.
+Follow these strict rules:
+- Quotes can be of any length — ranging from a single punchy sentence to a full, rich paragraph containing multiple sentences of profound spiritual realization or guidance.
+- Focus on deeply inspirational realizations, strong spiritual warnings, or beautiful comparisons (e.g. "The greatest psychic weapon anyone can have in this material world is loving people.", "If you share the Lord's load, He will take care of your load.").
+- STRICTLY AVOID simple factual sentences, dry philosophical axioms, or generic statements (such as "If you don't surrender, you are not a devotee" or "Bhakti is superior to all other practices").
+- The quotes must represent the highest points of emotional or intellectual realization in the lecture.
+- Only extract direct statements from the text — do not fabricate or alter the speaker's words significantly.
 
-Return ONLY a JSON array of strings, no other text. Example: ["If you share the Lord's load, He will take care of your load.", "Lust is the selfish desire to gratify oneself."]
+Return ONLY a JSON array of strings, no other text.
 
 Transcript:
 ${transcript}`
