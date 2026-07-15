@@ -11,7 +11,7 @@ import {
 import { eq } from 'drizzle-orm'
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-const RPM_DELAY_MS = 45_000 // 1 RPM limit delay
+const RPM_DELAY_MS = 10_000 // 6 RPM limit delay
 
 async function main() {
   const args = process.argv.slice(2)

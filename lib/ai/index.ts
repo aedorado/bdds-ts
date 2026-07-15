@@ -250,10 +250,14 @@ export async function extractSadhanaTips(transcript: string): Promise<string[]> 
     systemInstruction: SYSTEM_PROMPT,
   })
 
-  const prompt = `Extract practical, actionable advice, sadhana tips, or guidelines on how to practice devotional service mentioned by the speaker in the following transcript.
-Each tip must be direct advice stated in the text — do not add, infer, or bring in outside knowledge.
+  const prompt = `Extract practical, actionable sadhana tips, spiritual advice, or guidelines on how to apply the lecture's teachings to daily devotional practice.
+Follow these strict rules:
+- Focus on long-term spiritual growth, internal attitude changes, daily chanting/hearing advice, and practical devotion (sadhana) discussed by the speaker.
+- STRICTLY EXCLUDE all housekeeping rules, meeting logistics, Zoom/class setup guidelines, and technical reminders (such as keeping notebooks/pens/lamps ready, turning videos on/off, staying on mute, Zoom screen reading, etc.).
+- Each tip must be a substantive, inspiring action item derived directly from the speaker's core teachings in the text.
+- Do not add outside knowledge.
 
-Return ONLY a JSON array of strings, no other text. Example: ["Avoid idleness to stay mentally strong", "Wish everyone well to shield from negative thoughts"]
+Return ONLY a JSON array of strings, no other text. Example: ["Develop positive thoughts about others to guard your mind from negativity", "Remain fully occupied in devotional service to prevent the mind from wandering"]
 
 Transcript:
 ${transcript}`
