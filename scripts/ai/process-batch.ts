@@ -29,7 +29,7 @@ const idArg = args.find((a) => a.startsWith('--id='))
 const targetId = idArg ? parseInt(idArg.split('=')[1], 10) : null
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-const RPM_DELAY_MS = 45_000 // 1 RPM — wait 61s between each API call
+const RPM_DELAY_MS = 15_000 // 4 RPM — wait 61s between each API call
 
 async function processLecture(lecture: typeof lectures.$inferSelect) {
   const transcript = lecture.cleanedTranscript || lecture.rawTranscript
