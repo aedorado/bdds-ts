@@ -82,9 +82,9 @@ export function ReprocessAiButton({
     if (status === 'pending') {
       return (
         <button
-          onClick={handleReprocess}
-          title="AI generation in progress. Click to re-trigger."
-          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-bold animate-pulse hover:bg-yellow-200 transition-colors cursor-pointer"
+          disabled
+          title="AI generation in progress."
+          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-bold animate-pulse cursor-not-allowed"
         >
           AI
         </button>
