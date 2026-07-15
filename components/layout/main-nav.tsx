@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X, Home, Settings, Users, Zap, Sun, Moon, LayoutDashboard, BookOpen, Search as SearchIcon, Globe, LogOut, User } from 'lucide-react'
+import { Menu, X, Home, Settings, Users, Zap, Sun, Moon, LayoutDashboard, BookOpen, Search as SearchIcon, Globe, LogOut, User, Headphones } from 'lucide-react'
 import { useTheme } from '@/components/theme-provider'
 import { UserMenu } from './user-menu'
 
@@ -28,6 +28,7 @@ export function MainNav({ session }: { session: Session | null }) {
         { href: '/admin/lectures',  label: 'Lectures',  icon: BookOpen },
         { href: '/admin/users',     label: 'Users',     icon: Users },
         { href: '/admin/activity',  label: 'Activity',  icon: Zap },
+        { href: '/library',         label: 'Library',   icon: Headphones },
         { href: '/search',          label: 'Search',    icon: SearchIcon },
         { href: '/community',       label: 'Community', icon: Globe },
       ]
@@ -35,11 +36,13 @@ export function MainNav({ session }: { session: Session | null }) {
     ? [
         { href: '/workspace',              label: 'My Work',   icon: Home },
         { href: '/workspace/my-lectures',  label: 'Assigned',  icon: BookOpen },
+        { href: '/library',                label: 'Library',   icon: Headphones },
         { href: '/search',                 label: 'Search',    icon: SearchIcon },
         { href: '/community',              label: 'Community', icon: Globe },
       ]
     : [
         { href: '/',           label: 'Home',      icon: Home },
+        { href: '/library',    label: 'Library',   icon: Headphones },
         { href: '/search',     label: 'Search',    icon: SearchIcon },
         { href: '/community',  label: 'Community', icon: Globe },
       ]

@@ -123,6 +123,11 @@ export const aiSummaries = pgTable(
     keywords: text('keywords').array(),
     themes: text('themes').array(),
     anecdotes: text('anecdotes').array(),
+    verses: text('verses').array(),
+    personalities: text('personalities').array(),
+    sadhanaTips: text('sadhana_tips').array(),
+    quotes: text('quotes').array(),
+    qa: jsonb('qa'),
     generatedAt: timestamp('generated_at').notNull().defaultNow(),
   }
 )

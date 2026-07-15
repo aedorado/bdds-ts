@@ -1,6 +1,17 @@
 import { db } from '@/lib/db'
 import { aiSummaries, lectures } from '@/lib/db/schema'
-import { generateSummary, extractTeachings, extractThemes, generateTags, extractAnecdotes } from '@/lib/ai'
+import {
+  generateSummary,
+  extractTeachings,
+  extractThemes,
+  generateTags,
+  extractAnecdotes,
+  extractVerses,
+  extractPersonalities,
+  extractSadhanaTips,
+  extractQuotes,
+  extractQA
+} from '@/lib/ai'
 import { eq, isNull } from 'drizzle-orm'
 
 /**
@@ -45,8 +56,28 @@ async function processLecture(lecture: typeof lectures.$inferSelect) {
   const tags = await generateTags(transcript)
   await sleep(RPM_DELAY_MS)
 
-  console.log(`    [5/5] anecdotes...`)
+  console.log(`    [5/10] anecdotes...`)
   const anecdotes = await extractAnecdotes(transcript)
+  await sleep(RPM_DELAY_MS)
+
+  console.log(`    [6/10] verses...`)
+  const verses = await extractVerses(transcript)
+  await sleep(RPM_DELAY_MS)
+
+  console.log(`    [7/10] personalities...`)
+  const personalities = await extractPersonalities(transcript)
+  await sleep(RPM_DELAY_MS)
+
+  console.log(`    [8/10] sadhana tips...`)
+  const sadhanaTips = await extractSadhanaTips(transcript)
+  await sleep(RPM_DELAY_MS)
+
+  console.log(`    [9/10] quotes...`)
+  const quotes = await extractQuotes(transcript)
+  await sleep(RPM_DELAY_MS)
+
+  console.log(`    [10/10] qa...`)
+  const qa = await extractQA(transcript)
 
   // Upsert ai_summaries
   const existing = await db
@@ -58,10 +89,32 @@ async function processLecture(lecture: typeof lectures.$inferSelect) {
   if (existing.length) {
     await db
       .update(aiSummaries)
-      .set({ summary, keyTeachings, themes, anecdotes, generatedAt: new Date() })
+      .set({
+        summary,
+        keyTeachings,
+        themes,
+        anecdotes,
+        verses,
+        personalities,
+        sadhanaTips,
+        quotes,
+        qa,
+        generatedAt: new Date()
+      })
       .where(eq(aiSummaries.lectureId, lecture.id))
   } else {
-    await db.insert(aiSummaries).values({ lectureId: lecture.id, summary, keyTeachings, themes, anecdotes })
+    await db.insert(aiSummaries).values({
+      lectureId: lecture.id,
+      summary,
+      keyTeachings,
+      themes,
+      anecdotes,
+      verses,
+      personalities,
+      sadhanaTips,
+      quotes,
+      qa
+    })
   }
 
   // Save tags + mark as processed
@@ -70,7 +123,7 @@ async function processLecture(lecture: typeof lectures.$inferSelect) {
     .set({ tags, aiProcessedAt: new Date(), updatedAt: new Date() })
     .where(eq(lectures.id, lecture.id))
 
-  console.log(`  [${lecture.id}] done — summary, ${keyTeachings.length} teachings, ${themes.length} themes, ${tags.length} tags, ${anecdotes.length} anecdotes`)
+  console.log(`  [${lecture.id}] done — summary, ${keyTeachings.length} teachings, ${themes.length} themes, ${tags.length} tags, ${anecdotes.length} anecdotes, ${verses.length} verses, ${personalities.length} personalities, ${sadhanaTips.length} sadhana tips, ${quotes.length} quotes, ${qa.length} qa`)
 }
 
 async function main() {

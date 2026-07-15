@@ -172,3 +172,172 @@ ${transcript}`
   return []
 }
 
+/**
+ * Extract scripture verses or citations referenced in the transcript
+ */
+export async function extractVerses(transcript: string): Promise<string[]> {
+  const genAI = initializeGemini()
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-3.1-flash-lite',
+    systemInstruction: SYSTEM_PROMPT,
+  })
+
+  const prompt = `Extract a list of specific scripture verses or citations (like "SB 10.14.5" or "BG 18.66") referred to or quoted by the speaker in the following transcript.
+Only extract actual references explicitly mentioned in the text.
+Format them cleanly (e.g., "SB 10.14.5").
+
+Return ONLY a JSON array of strings, no other text. Example: ["SB 10.14.5", "BG 18.66"]
+
+Transcript:
+${transcript}`
+
+  const result = await model.generateContent(prompt)
+  const text = result.response.text()
+
+  const jsonMatch = text.match(/\[[\s\S]*\]/)
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0])
+    } catch (e) {
+      console.error('Failed to parse verses JSON:', e)
+      return []
+    }
+  }
+  return []
+}
+
+/**
+ * Extract key scriptural or historical personalities mentioned in the transcript
+ */
+export async function extractPersonalities(transcript: string): Promise<string[]> {
+  const genAI = initializeGemini()
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-3.1-flash-lite',
+    systemInstruction: SYSTEM_PROMPT,
+  })
+
+  const prompt = `Extract key scriptural or historical personalities, deities, or saints mentioned by the speaker in the following transcript (e.g., "Lord Brahma", "Srila Prabhupada", "Jiva Goswami").
+Do not include generic terms, or the speaker's own name.
+Ensure names are spelled correctly according to common English transliteration.
+
+Return ONLY a JSON array of strings, no other text. Example: ["Lord Brahma", "Srila Prabhupada"]
+
+Transcript:
+${transcript}`
+
+  const result = await model.generateContent(prompt)
+  const text = result.response.text()
+
+  const jsonMatch = text.match(/\[[\s\S]*\]/)
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0])
+    } catch (e) {
+      console.error('Failed to parse personalities JSON:', e)
+      return []
+    }
+  }
+  return []
+}
+
+/**
+ * Extract practical actionable advice (Sadhana Tips) from the transcript
+ */
+export async function extractSadhanaTips(transcript: string): Promise<string[]> {
+  const genAI = initializeGemini()
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-3.1-flash-lite',
+    systemInstruction: SYSTEM_PROMPT,
+  })
+
+  const prompt = `Extract practical, actionable advice, sadhana tips, or guidelines on how to practice devotional service mentioned by the speaker in the following transcript.
+Each tip must be direct advice stated in the text — do not add, infer, or bring in outside knowledge.
+
+Return ONLY a JSON array of strings, no other text. Example: ["Avoid idleness to stay mentally strong", "Wish everyone well to shield from negative thoughts"]
+
+Transcript:
+${transcript}`
+
+  const result = await model.generateContent(prompt)
+  const text = result.response.text()
+
+  const jsonMatch = text.match(/\[[\s\S]*\]/)
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0])
+    } catch (e) {
+      console.error('Failed to parse sadhana tips JSON:', e)
+      return []
+    }
+  }
+  return []
+}
+
+/**
+ * Extract direct memorable quotes from the transcript
+ */
+export async function extractQuotes(transcript: string): Promise<string[]> {
+  const genAI = initializeGemini()
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-3.1-flash-lite',
+    systemInstruction: SYSTEM_PROMPT,
+  })
+
+  const prompt = `Extract 3-5 of the most impactful, memorable, or key quotes directly spoken by the speaker in the following transcript.
+Only use direct statements from the text — do not paraphrase or modify the quotes significantly.
+
+Return ONLY a JSON array of strings, no other text. Example: ["If you share the Lord's load, He will take care of your load.", "Lust is the selfish desire to gratify oneself."]
+
+Transcript:
+${transcript}`
+
+  const result = await model.generateContent(prompt)
+  const text = result.response.text()
+
+  const jsonMatch = text.match(/\[[\s\S]*\]/)
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0])
+    } catch (e) {
+      console.error('Failed to parse quotes JSON:', e)
+      return []
+    }
+  }
+  return []
+}
+
+/**
+ * Extract audience questions and corresponding speaker answers from the transcript
+ */
+export async function extractQA(transcript: string): Promise<{ question: string; answer: string }[]> {
+  const genAI = initializeGemini()
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-3.1-flash-lite',
+    systemInstruction: SYSTEM_PROMPT,
+  })
+
+  const prompt = `Identify and extract actual audience questions (or questions addressed by the speaker) and the corresponding answers given by the speaker in the following transcript.
+Do not invent questions or answers. Only extract actual exchanges present in the text.
+If no questions were asked, return an empty array.
+
+Return ONLY a JSON array of objects with "question" and "answer" keys. No other text. Example: [{"question": "How do we overcome lust?", "answer": "By keeping ourselves busy in devotional service."}]
+
+Transcript:
+${transcript}`
+
+  const result = await model.generateContent(prompt)
+  const text = result.response.text()
+
+  const jsonMatch = text.match(/\[[\s\S]*\]/)
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0])
+    } catch (e) {
+      console.error('Failed to parse QA JSON:', e)
+      return []
+    }
+  }
+  return []
+}
+
+

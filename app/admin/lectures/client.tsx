@@ -12,6 +12,7 @@ import {
   assignCorrectorAction,
   assignProofreaderAction,
 } from '@/lib/db/actions'
+import { ReprocessAiButton } from '@/components/lecture/reprocess-ai-button'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -504,35 +505,21 @@ export function AdminLecturesClient({ initialLectures, totalLectures, contributo
 
                 {/* AI Status */}
                 <td className="px-4 py-3 text-center">
-                  {!lecture.aiGenerationStatus ? (
-                    <button
-                      title="AI generation not started"
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold hover:bg-slate-300 transition-colors"
-                    >
-                      AI
-                    </button>
-                  ) : lecture.aiGenerationStatus === 'pending' ? (
-                    <button
-                      title="AI generation in progress"
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-bold animate-pulse hover:bg-yellow-200 transition-colors"
-                    >
-                      AI
-                    </button>
-                  ) : lecture.aiGenerationStatus === 'completed' ? (
-                    <button
-                      title="AI generation completed"
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-700 text-[10px] font-bold hover:bg-green-200 transition-colors"
-                    >
-                      ✓
-                    </button>
-                  ) : (
-                    <button
-                      title={`AI generation failed: ${lecture.aiGenerationError || 'Unknown error'}`}
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-700 text-[10px] font-bold hover:bg-red-200 transition-colors"
-                    >
-                      ✗
-                    </button>
-                  )}
+                  <ReprocessAiButton
+                    lectureId={lecture.id}
+                    status={lecture.aiGenerationStatus}
+                    error={lecture.aiGenerationError}
+                    variant="badge"
+                    onTriggered={() => {
+                      setLectures(prev =>
+                        prev.map(l =>
+                          l.id === lecture.id
+                            ? { ...l, aiGenerationStatus: 'pending', aiGenerationError: null }
+                            : l
+                        )
+                      )
+                    }}
+                  />
                 </td>
 
                 {/* Actions */}

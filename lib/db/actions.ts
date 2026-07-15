@@ -20,7 +20,7 @@ import {
 import { z } from 'zod'
 import { getPostHogClient } from '@/lib/posthog-server'
 import { db } from '@/lib/db'
-import { users } from '@/lib/db/schema'
+import { users, lectures, aiSummaries } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { validateSessionVersion } from '@/lib/auth/session'
 
@@ -439,3 +439,48 @@ export async function publishLectureAction(lectureId: number) {
   await posthog.shutdown()
   return { success: true, lecture: JSON.parse(JSON.stringify(updated)) }
 }
+
+/**
+ * Reprocess AI summary and metadata for a lecture (admin only)
+ */
+export async function reprocessLectureAiAction(lectureId: number) {
+  const session = await withAdminRole()
+
+  try {
+    const sessionVersion = (session as any).sessionVersion ?? 0
+    await validateSessionVersion(session.userId, sessionVersion)
+  } catch (error) {
+    return { success: false, error: 'Session invalid: please re-login' }
+  }
+
+  try {
+    // 1. Reset AI generation status on the lecture
+    await db
+      .update(lectures)
+      .set({
+        aiGenerationStatus: 'pending',
+        aiGenerationStartedAt: new Date(),
+        aiGenerationCompletedAt: null,
+        aiGenerationError: null,
+      })
+      .where(eq(lectures.id, lectureId))
+
+    // 2. Delete existing AI summaries to ensure a full clean regeneration
+    await db
+      .delete(aiSummaries)
+      .where(eq(aiSummaries.lectureId, lectureId))
+
+    // 3. Spawn background generation immediately
+    const { exec } = require('child_process')
+    exec('npx tsx scripts/ai/process-next-lecture.ts', (err: any) => {
+      if (err) {
+        console.error('Failed to run background AI process:', err)
+      }
+    })
+
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to trigger AI reprocessing' }
+  }
+}
+

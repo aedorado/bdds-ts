@@ -57,6 +57,21 @@ async function processNextLecture() {
     const runThemes = !aiSummary || !aiSummary.themes || aiSummary.themes.length === 0
     const runAnecdotes = !aiSummary || !aiSummary.anecdotes || aiSummary.anecdotes.length === 0
 
+    const runVerses = !aiSummary || !aiSummary.verses || aiSummary.verses.length === 0
+    const runPersonalities = !aiSummary || !aiSummary.personalities || aiSummary.personalities.length === 0
+    const runSadhana = !aiSummary || !aiSummary.sadhanaTips || aiSummary.sadhanaTips.length === 0
+    const runQuotes = !aiSummary || !aiSummary.quotes || aiSummary.quotes.length === 0
+    const runQA = !aiSummary || !aiSummary.qa || !Array.isArray(aiSummary.qa) || aiSummary.qa.length === 0
+
+    const extraFlags = []
+    if (runVerses) extraFlags.push('--runVerses')
+    if (runPersonalities) extraFlags.push('--runPersonalities')
+    if (runSadhana) extraFlags.push('--runSadhana')
+    if (runQuotes) extraFlags.push('--runQuotes')
+    if (runQA) extraFlags.push('--runQA')
+
+    const runExtras = extraFlags.length > 0
+
     // 4. Build only the scripts that need to be run
     const scripts = []
     if (runSummary) {
@@ -73,6 +88,9 @@ async function processNextLecture() {
     }
     if (runAnecdotes) {
       scripts.push({ name: 'Anecdotes', cmd: `npx tsx scripts/ai/extract-anecdotes.ts --lectureId=${lectureId}` })
+    }
+    if (runExtras) {
+      scripts.push({ name: 'Extras', cmd: `npx tsx scripts/ai/extract-extras.ts --lectureId=${lectureId} ${extraFlags.join(' ')}` })
     }
 
     if (scripts.length === 0) {
@@ -123,6 +141,11 @@ async function processNextLecture() {
       (freshAi?.keyTeachings && freshAi.keyTeachings.length > 0) ||
       (freshAi?.themes && freshAi.themes.length > 0) ||
       (freshAi?.anecdotes && freshAi.anecdotes.length > 0) ||
+      (freshAi?.quotes && freshAi.quotes.length > 0) ||
+      (freshAi?.verses && freshAi.verses.length > 0) ||
+      (freshAi?.personalities && freshAi.personalities.length > 0) ||
+      (freshAi?.sadhanaTips && freshAi.sadhanaTips.length > 0) ||
+      (freshAi?.qa && Array.isArray(freshAi.qa) && freshAi.qa.length > 0) ||
       (freshLecture?.tags && freshLecture.tags.length > 0)
 
     // 6. Update final status

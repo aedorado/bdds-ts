@@ -34,7 +34,14 @@
       "idx": 4,
       "version": "7",
       "when": 1784035256591,
-      "tag": "0004_acoustic_the_watchers",
+      "tag": "0004_lectures",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784102326035,
+      "tag": "0005_ai",
       "breakpoints": true
     }
   ]

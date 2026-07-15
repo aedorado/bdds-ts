@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { notFound, redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { buttonVariants } from '@/components/ui/button'
-import { ArrowLeft, Calendar, Clock, MapPin, User, Edit2, BookOpen, Lightbulb, Tag, Layers } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, MapPin, User, Edit2, BookOpen, Lightbulb, Tag, Layers, Quote, HelpCircle, Users, Scroll, CheckSquare } from 'lucide-react'
 import { getSession } from '@/lib/auth'
 import { getLectureWithAiBySlug, getLectureById } from '@/lib/db/queries'
 import { hasRole } from '@/lib/auth/middleware'
@@ -15,6 +15,7 @@ import { MediaPlayerWrapper } from '@/components/media/media-player-wrapper'
 import { TranscriptSyncWrapper } from './transcript-sync-wrapper'
 import { TranscriptEditorProvider } from '@/lib/transcript'
 import { parseTranscript } from '@/lib/transcript/parser'
+import { ReprocessAiButton } from '@/components/lecture/reprocess-ai-button'
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -168,6 +169,10 @@ export default async function LecturePage({ params }: Props) {
   const hasSidebar = !!(
     lecture.ai?.keyTeachings?.length ||
     lecture.ai?.themes?.length ||
+    lecture.ai?.anecdotes?.length ||
+    lecture.ai?.verses?.length ||
+    lecture.ai?.personalities?.length ||
+    lecture.ai?.sadhanaTips?.length ||
     lecture.tags?.length ||
     lecture.youtubeUrl ||
     lecture.audioUrl ||
@@ -218,12 +223,21 @@ export default async function LecturePage({ params }: Props) {
               {lecture.title}
             </h1>
             <div className="flex flex-col items-end gap-2 flex-shrink-0 mt-1">
-              {canEdit && (
-                <Link href={`/lecture/${lecture.slug}/edit`} className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1.5')}>
-                  <Edit2 className="w-3.5 h-3.5" />
-                  Edit Transcript
-                </Link>
-              )}
+              <div className="flex items-center gap-2">
+                {session?.role === 'admin' && (
+                  <ReprocessAiButton
+                    lectureId={lecture.id}
+                    status={lecture.aiGenerationStatus}
+                    error={lecture.aiGenerationError}
+                  />
+                )}
+                {canEdit && (
+                  <Link href={`/lecture/${lecture.slug}/edit`} className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1.5')}>
+                    <Edit2 className="w-3.5 h-3.5" />
+                    Edit Transcript
+                  </Link>
+                )}
+              </div>
               {pipelineAction && (
                 <StatusActionButton
                   lectureId={lecture.id}
@@ -272,6 +286,23 @@ export default async function LecturePage({ params }: Props) {
                 </Card>
               )}
 
+              {/* Memorable Quotes */}
+              {lecture.ai?.quotes?.length ? (
+                <div className="mb-8 space-y-3">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2 text-saffron-800 dark:text-saffron-400">
+                    <Quote className="w-3.5 h-3.5 text-saffron-500" />
+                    Key Quotes
+                  </h3>
+                  <div className="grid gap-3.5">
+                    {lecture.ai.quotes.map((quote, i) => (
+                      <blockquote key={i} className="pl-4 border-l-4 border-saffron-400 italic text-muted-foreground text-sm leading-relaxed">
+                        "{quote}"
+                      </blockquote>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               {/* Full Transcript */}
               {transcriptBlocks.length > 0 ? (
                 <TranscriptSyncWrapper blocks={transcriptBlocks} />
@@ -282,6 +313,34 @@ export default async function LecturePage({ params }: Props) {
                   </CardContent>
                 </Card>
               )}
+
+              {/* Q&A Segment */}
+              {lecture.ai?.qa && Array.isArray(lecture.ai.qa) && lecture.ai.qa.length > 0 ? (
+                <Card className="mt-8 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <HelpCircle className="w-4 h-4 text-blue-500" />
+                      Questions & Answers
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {(lecture.ai.qa as { question: string; answer: string }[]).map((item, i) => (
+                        <div key={i} className="space-y-2 pb-4 border-b border-border last:border-0 last:pb-0">
+                          <div className="font-semibold text-sm flex items-start gap-2 text-slate-800 dark:text-slate-200">
+                            <span className="text-blue-500 font-bold">Q:</span>
+                            <span>{item.question}</span>
+                          </div>
+                          <div className="text-sm pl-6 text-muted-foreground leading-relaxed">
+                            <span className="text-green-500 font-bold mr-1">A:</span>
+                            {item.answer}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
             </article>
 
             {/* ── Sidebar ── */}
@@ -349,6 +408,71 @@ export default async function LecturePage({ params }: Props) {
                             <li key={i} className="flex items-start gap-2.5 text-sm">
                               <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
                               <span className="leading-relaxed">{anecdote}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+
+                  {/* Verses Referenced */}
+                  {lecture.ai?.verses?.length ? (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Scroll className="w-4 h-4 text-indigo-500" />
+                          Verses Referenced
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-2">
+                          {lecture.ai.verses.map((verse, i) => (
+                            <li key={i} className="flex items-center gap-2 text-sm">
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />
+                              <span className="font-medium text-slate-800 dark:text-slate-200">{verse}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+
+                  {/* Key Personalities */}
+                  {lecture.ai?.personalities?.length ? (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Users className="w-4 h-4 text-cyan-500" />
+                          Personalities Mentioned
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-wrap gap-1.5">
+                          {lecture.ai.personalities.map((person, i) => (
+                            <span key={i} className="text-xs px-2.5 py-1 bg-cyan-50 dark:bg-cyan-950/20 text-cyan-700 dark:text-cyan-400 rounded-md border border-cyan-100 dark:border-cyan-900/50">
+                              {person}
+                            </span>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+
+                  {/* Practical Actionable Advice (Sadhana Tips) */}
+                  {lecture.ai?.sadhanaTips?.length ? (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <CheckSquare className="w-4 h-4 text-orange-500" />
+                          Sadhana & Application
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-3">
+                          {lecture.ai.sadhanaTips.map((tip, i) => (
+                            <li key={i} className="flex items-start gap-2.5 text-sm">
+                              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0" />
+                              <span className="leading-relaxed">{tip}</span>
                             </li>
                           ))}
                         </ul>
